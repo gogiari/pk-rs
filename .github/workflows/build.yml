@@ -143,7 +143,8 @@ jobs:
           cp npm-assets/npm-pk-macos-universal npm/binaries/darwin-universal/pk
           chmod 755 npm/binaries/linux-x64/pk npm/binaries/darwin-universal/pk
           npm --prefix npm test
-          npm pack ./npm --dry-run --json > npm-pack.json
+          node npm/scripts/verify-binaries.cjs
+          npm pack ./npm --dry-run --ignore-scripts --json > npm-pack.json
           python3 - <<'PY'
           import json
           names = {file['path'] for file in json.load(open('npm-pack.json'))[0]['files']}
@@ -154,6 +155,12 @@ jobs:
           }
           if not required <= names:
               raise SystemExit(f'Native binaries missing from npm tarball: {required - names}')
+          package = json.load(open('npm-pack.json'))[0]
+          executable = {'bin/pk.cjs', 'binaries/linux-x64/pk', 'binaries/darwin-universal/pk'}
+          files = {file['path']: file for file in package['files']}
+          for name in executable:
+              if not files[name]['mode'] & 0o111:
+                  raise SystemExit(f'Executable bit missing from npm tarball: {name}')
           PY
       - uses: actions/upload-artifact@v7
         with:

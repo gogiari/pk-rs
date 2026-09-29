@@ -11,7 +11,7 @@ npm install -g pk-proxy-manager
 pk ui
 ```
 
-`pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트는 `npm install -g pk-proxy-manager@latest`, 제거는 `npm uninstall -g pk-proxy-manager`입니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
+`pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트 전에는 `pk stop`으로 서비스를 종료한 뒤 `npm install -g pk-proxy-manager@latest`를 실행하세요. 제거할 때도 `pk stop` 후 `npm uninstall -g pk-proxy-manager`를 사용합니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
 
 Node.js 없이 설치하려면 [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)의 OS별 설치 파일을 사용하세요. npm 설치에는 앱 메뉴·바탕화면 바로가기가 포함되지 않습니다.
 
@@ -90,7 +90,7 @@ ocx-proxy
 
 ## 다운로드 및 업데이트
 
-CLI 사용자는 `npm install -g pk-proxy-manager`로 설치하고 `npm install -g pk-proxy-manager@latest`로 업데이트하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 Release 페이지로 안내합니다. npm으로 설치했다면 알림이 뜬 뒤 npm 업데이트 명령을 사용하세요.
+CLI 사용자는 `npm install -g pk-proxy-manager`로 설치하고, 업데이트할 때는 `pk stop` 후 `npm install -g pk-proxy-manager@latest`를 실행하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 Release 페이지로 안내합니다. npm으로 설치했다면 알림이 뜬 뒤 npm 업데이트 명령을 사용하세요.
 
 | 운영체제 | 다운로드 | 업데이트 |
 | --- | --- | --- |
