@@ -73,10 +73,20 @@ pub async fn run_web_server(state: AppState, port: u16) -> Result<(), String> {
 
     let tunnel_for_shutdown = state.tunnel.clone();
     let shutdown = async move {
+        #[cfg(unix)]
+        {
+            let mut terminate = tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("SIGTERM handler");
+            tokio::select! {
+                _ = tokio::signal::ctrl_c() => {},
+                _ = terminate.recv() => {},
+            }
+        }
+        #[cfg(not(unix))]
         let _ = tokio::signal::ctrl_c().await;
         crate::log_info!(
             "
-[PK] Ctrl+C 수신. SSH 터널 및 프록시를 종료합니다..."
+[PK] 종료 신호 수신. SSH 터널 및 프록시를 종료합니다..."
         );
         let _ = tunnel_for_shutdown.stop_ssh().await;
     };

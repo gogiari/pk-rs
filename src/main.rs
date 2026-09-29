@@ -92,6 +92,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "stop" => {
             if let Some(pid) = daemon::get_running_pid() {
                 println!("==> PK Proxy Service (PID: {})를 중지합니다...", pid);
+                let _ = daemon::disconnect_tunnel(Config::load().web_port);
                 let _ = daemon::kill_pid(pid);
                 daemon::remove_pid_file();
             }
@@ -101,6 +102,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "restart" => {
             if let Some(pid) = daemon::get_running_pid() {
                 println!("==> 실행 중인 PK Proxy Service (PID: {})를 중지합니다...", pid);
+                let _ = daemon::disconnect_tunnel(Config::load().web_port);
                 let _ = daemon::kill_pid(pid);
                 daemon::remove_pid_file();
             }

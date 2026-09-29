@@ -1,5 +1,7 @@
 use crate::config::config_path;
 use std::fs;
+use std::io::{Read, Write};
+use std::net::{Ipv4Addr, SocketAddr, TcpStream};
 use std::path::PathBuf;
 #[cfg(unix)]
 use std::path::Path;
@@ -35,6 +37,30 @@ pub fn write_pid_file(pid: u32) {
 
 pub fn remove_pid_file() {
     let _ = fs::remove_file(pid_file_path());
+}
+
+pub fn disconnect_tunnel(web_port: u16) -> Result<(), String> {
+    let addr = SocketAddr::from((Ipv4Addr::LOCALHOST, web_port));
+    let mut stream = TcpStream::connect_timeout(&addr, std::time::Duration::from_millis(750))
+        .map_err(|e| format!("Cannot reach dashboard: {e}"))?;
+    stream
+        .set_read_timeout(Some(std::time::Duration::from_secs(3)))
+        .map_err(|e| e.to_string())?;
+    stream
+        .set_write_timeout(Some(std::time::Duration::from_secs(3)))
+        .map_err(|e| e.to_string())?;
+    stream
+        .write_all(b"POST /api/tunnel/disconnect HTTP/1.1\r\nHost: 127.0.0.1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+        .map_err(|e| format!("Cannot request tunnel shutdown: {e}"))?;
+    let mut response = [0u8; 32];
+    let count = stream
+        .read(&mut response)
+        .map_err(|e| format!("Cannot confirm tunnel shutdown: {e}"))?;
+    if response[..count].starts_with(b"HTTP/1.1 200") {
+        Ok(())
+    } else {
+        Err("Dashboard did not confirm tunnel shutdown".to_string())
+    }
 }
 
 pub fn is_pid_alive(pid: u32) -> bool {

@@ -1,0 +1,98 @@
+name: Build and verify
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build installer
+        shell: pwsh
+        run: ./build.ps1
+      - name: Test Rust code and dashboard
+        shell: pwsh
+        run: |
+          cargo test --bin pk
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/smoke-dashboard.py target/release/pk.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pk-windows-x64
+          path: target/release/pk-installer.exe
+          if-no-files-found: error
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.x'
+          cache: false
+      - name: Install Linux packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Build packages
+        run: bash build-linux.sh
+      - name: Verify packages and dashboard
+        run: |
+          bash verify-linux.sh
+          cargo test --bin pk
+          python3 scripts/smoke-dashboard.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
+          python3 scripts/smoke-stop-ssh.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pk-linux-x64
+          path: target/linux-dist/*
+          if-no-files-found: error
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Build universal installer
+        run: bash build-macos.sh
+      - name: Test macOS package, dashboard, and removal
+        run: |
+          cargo test --bin pk
+          pkg=$(find target/macos-dist -maxdepth 1 -name '*.pkg' -print -quit)
+          test -n "$pkg"
+          sudo installer -pkg "$pkg" -target /
+          test -x '/Applications/PK Proxy Manager.app/Contents/MacOS/pk'
+          python3 scripts/smoke-dashboard.py /usr/local/bin/pk
+          python3 scripts/smoke-stop-ssh.py /usr/local/bin/pk
+          bash '/Applications/Uninstall PK Proxy Manager.command'
+          test ! -e /usr/local/bin/pk
+          test ! -e '/Applications/PK Proxy Manager.app'
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pk-macos-universal
+          path: target/macos-dist/*.pkg
+          if-no-files-found: error
