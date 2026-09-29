@@ -1,0 +1,11 @@
+/target
+/web/node_modules
+/web/dist
+/design-qa.md
+/.env
+/.env.*
+/config.toml
+/pk.pid
+/pk.log
+*.pem
+*.key
