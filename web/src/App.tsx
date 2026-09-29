@@ -223,10 +223,12 @@ export default function App() {
       {status?.version && <div className={'update-strip ' + updateState} role="status">
         <span className="update-version">v{status.version}</span>
         <span className="update-description">{updateState === 'checking' ? '새 버전 확인 중…'
-          : updateState === 'available' ? `새 버전 v${latestRelease?.version}을 사용할 수 있습니다.`
+          : updateState === 'available' ? status.install_source === 'npm'
+            ? `새 버전 v${latestRelease?.version} · npm install -g pk-proxy-manager@latest`
+            : `새 버전 v${latestRelease?.version}을 사용할 수 있습니다.`
             : updateState === 'current' ? '최신 버전입니다.' : '새 버전을 확인할 수 없습니다.'}</span>
         {updateState === 'available' && latestRelease && <a className="update-link" href={latestRelease.url} target="_blank" rel="noopener noreferrer">
-          다운로드<ArrowRightIcon size={15} aria-hidden="true" /></a>}
+          {status.install_source === 'npm' ? '릴리스 정보' : '다운로드'}<ArrowRightIcon size={15} aria-hidden="true" /></a>}
         {updateState !== 'available' && <button type="button" className="update-check" disabled={updateState === 'checking'}
           onClick={() => void checkForUpdates(status.version)}><ArrowClockwiseIcon size={15} aria-hidden="true" />다시 확인</button>}
       </div>}

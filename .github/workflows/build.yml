@@ -30,10 +30,20 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/smoke-dashboard.py target/release/pk.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Stage npm executable
+        shell: pwsh
+        run: |
+          Copy-Item target/release/pk.exe target/release/npm-pk-windows-x64.exe
+          New-Item -ItemType Directory -Force npm/binaries/win32-x64 | Out-Null
+          Copy-Item target/release/pk.exe npm/binaries/win32-x64/pk.exe
+          node npm/bin/pk.cjs status
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v7
         with:
           name: pk-windows-x64
-          path: target/release/pk-installer.exe
+          path: |
+            target/release/pk-installer.exe
+            target/release/npm-pk-windows-x64.exe
           if-no-files-found: error
 
   linux:
@@ -63,6 +73,12 @@ jobs:
           cargo test --bin pk
           python3 scripts/smoke-dashboard.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
           python3 scripts/smoke-stop-ssh.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
+      - name: Stage npm executable
+        run: |
+          install -m 755 "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk" target/linux-dist/npm-pk-linux-x64
+          mkdir -p npm/binaries/linux-x64
+          install -m 755 target/linux-dist/npm-pk-linux-x64 npm/binaries/linux-x64/pk
+          node npm/bin/pk.cjs status
       - uses: actions/upload-artifact@v7
         with:
           name: pk-linux-x64
@@ -92,15 +108,65 @@ jobs:
           bash '/Applications/Uninstall PK Proxy Manager.command'
           test ! -e /usr/local/bin/pk
           test ! -e '/Applications/PK Proxy Manager.app'
+      - name: Test npm executable
+        run: |
+          mkdir -p npm/binaries/darwin-universal
+          install -m 755 target/macos-dist/npm-pk-macos-universal npm/binaries/darwin-universal/pk
+          node npm/bin/pk.cjs status
       - uses: actions/upload-artifact@v7
         with:
           name: pk-macos-universal
-          path: target/macos-dist/*.pkg
+          path: |
+            target/macos-dist/*.pkg
+            target/macos-dist/npm-pk-macos-universal
+          if-no-files-found: error
+
+  npm-package:
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: pk-*
+          path: npm-assets
+          merge-multiple: true
+      - name: Assemble and verify npm package
+        run: |
+          mkdir -p npm/binaries/win32-x64 npm/binaries/linux-x64 npm/binaries/darwin-universal
+          cp npm-assets/npm-pk-windows-x64.exe npm/binaries/win32-x64/pk.exe
+          cp npm-assets/npm-pk-linux-x64 npm/binaries/linux-x64/pk
+          cp npm-assets/npm-pk-macos-universal npm/binaries/darwin-universal/pk
+          chmod 755 npm/binaries/linux-x64/pk npm/binaries/darwin-universal/pk
+          npm --prefix npm test
+          npm pack ./npm --dry-run --json > npm-pack.json
+          python3 - <<'PY'
+          import json
+          names = {file['path'] for file in json.load(open('npm-pack.json'))[0]['files']}
+          required = {
+              'binaries/win32-x64/pk.exe',
+              'binaries/linux-x64/pk',
+              'binaries/darwin-universal/pk',
+          }
+          if not required <= names:
+              raise SystemExit(f'Native binaries missing from npm tarball: {required - names}')
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pk-npm-package
+          path: |
+            npm-assets/npm-pk-windows-x64.exe
+            npm-assets/npm-pk-linux-x64
+            npm-assets/npm-pk-macos-universal
           if-no-files-found: error
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, linux, macos]
+    needs: [windows, linux, macos, npm-package]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -121,11 +187,13 @@ jobs:
               web_version = json.load(source)['version']
           with open('web/package-lock.json', encoding='utf-8') as source:
               lock_version = json.load(source)['version']
+          with open('npm/package.json', encoding='utf-8') as source:
+              npm_version = json.load(source)['version']
           tag = os.environ['RELEASE_TAG']
-          if tag != f'v{version}' or web_version != version or lock_version != version:
+          if tag != f'v{version}' or web_version != version or lock_version != version or npm_version != version:
               raise SystemExit(
                   f'Version mismatch: tag={tag}, Cargo={version}, '
-                  f'web={web_version}, lock={lock_version}'
+                  f'web={web_version}, lock={lock_version}, npm={npm_version}'
               )
           PY
       - uses: actions/download-artifact@v8
@@ -147,3 +215,32 @@ jobs:
           gh release create "$RELEASE_TAG" release-assets/* \
             --verify-tag --generate-notes \
             --notes '운영체제에 맞는 설치 파일을 다운로드해 실행하세요. 새 버전은 기존 설치를 갱신하며 개인 설정은 유지됩니다. macOS 패키지는 아직 서명·공증되지 않았습니다.'
+
+  npm-publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
+      - uses: actions/download-artifact@v8
+        with:
+          name: pk-npm-package
+          path: npm-assets
+      - name: Publish npm package through trusted publishing
+        run: |
+          mkdir -p npm/binaries/win32-x64 npm/binaries/linux-x64 npm/binaries/darwin-universal
+          cp npm-assets/npm-pk-windows-x64.exe npm/binaries/win32-x64/pk.exe
+          cp npm-assets/npm-pk-linux-x64 npm/binaries/linux-x64/pk
+          cp npm-assets/npm-pk-macos-universal npm/binaries/darwin-universal/pk
+          chmod 755 npm/binaries/linux-x64/pk npm/binaries/darwin-universal/pk
+          npm --prefix npm test
+          cd npm
+          npm publish --access public

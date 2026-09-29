@@ -1,0 +1,37 @@
+{
+  "name": "pk-proxy-manager",
+  "version": "0.1.1",
+  "description": "Local SSH tunnel and HTTP proxy manager with a web dashboard",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gogiari/pk-rs.git"
+  },
+  "homepage": "https://github.com/gogiari/pk-rs#readme",
+  "bugs": "https://github.com/gogiari/pk-rs/issues",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "pk": "bin/pk.cjs",
+    "codex-proxy": "bin/codex-proxy.cjs",
+    "grok-proxy": "bin/grok-proxy.cjs",
+    "claude-proxy": "bin/claude-proxy.cjs",
+    "agy-proxy": "bin/agy-proxy.cjs",
+    "ocx-proxy": "bin/ocx-proxy.cjs",
+    "opencodex-proxy": "bin/opencodex-proxy.cjs"
+  },
+  "files": [
+    "README.md",
+    "bin/",
+    "launcher.cjs",
+    "binaries/"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "prepack": "node scripts/verify-binaries.cjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

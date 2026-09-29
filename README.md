@@ -1,6 +1,19 @@
 # pk-rs (Rust Native Proxy & Tunnel Manager)
 
-실행 시 Python이나 Node.js 의존성 없이 단일 바이너리로 동작하는 SSH 터널, HTTP-to-SOCKS5 프록시, 웹 설정 GUI 및 CLI 래퍼입니다.
+Rust로 만든 SSH 터널, HTTP-to-SOCKS5 프록시, 웹 설정 GUI 및 CLI 래퍼입니다. npm으로 설치해도 실제 서비스는 네이티브 실행 파일로 동작합니다.
+
+## 빠른 설치 (npm)
+
+Node.js 18 이상이 설치되어 있다면 Windows x64, macOS Intel/Apple Silicon, Linux x64에서 같은 명령을 사용합니다.
+
+```bash
+npm install -g pk-proxy-manager
+pk ui
+```
+
+`pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트는 `npm install -g pk-proxy-manager@latest`, 제거는 `npm uninstall -g pk-proxy-manager`입니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
+
+Node.js 없이 설치하려면 [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)의 OS별 설치 파일을 사용하세요. npm 설치에는 앱 메뉴·바탕화면 바로가기가 포함되지 않습니다.
 
 ## 주요 기능
 
@@ -11,7 +24,7 @@
 
 ## 사용법
 
-### 1. 빌드 및 설치
+### 1. 소스에서 빌드하거나 OS별 설치 파일 사용
 
 Windows PowerShell에서 저장소 루트의 빌드 스크립트 하나로 프론트와 Rust를 순서대로 빌드합니다. Node.js와 Rust 툴체인은 빌드할 때만 필요합니다.
 
@@ -77,7 +90,7 @@ ocx-proxy
 
 ## 다운로드 및 업데이트
 
-[GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에서 운영체제에 맞는 설치 파일을 내려받으세요. Releases에 첨부된 `SHA256SUMS`로 다운로드한 파일을 검증할 수 있습니다. 대시보드는 실행할 때 새 버전을 확인하고, 사용 가능한 버전이 있으면 설치 파일 페이지로 안내합니다. 업데이트 설치는 사용자가 직접 진행합니다.
+CLI 사용자는 `npm install -g pk-proxy-manager`로 설치하고 `npm install -g pk-proxy-manager@latest`로 업데이트하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 Release 페이지로 안내합니다. npm으로 설치했다면 알림이 뜬 뒤 npm 업데이트 명령을 사용하세요.
 
 | 운영체제 | 다운로드 | 업데이트 |
 | --- | --- | --- |
@@ -95,4 +108,4 @@ macOS CI 패키지는 아직 서명·공증되지 않았습니다. 배포판별 
 
 GitHub의 `main` 푸시, Pull Request, 수동 실행에서 Windows·Linux·macOS 빌드와 대시보드 검증을 실행합니다. 성공한 설치 파일은 해당 Actions 실행의 Artifacts에서도 내려받을 수 있습니다. macOS 작업은 `.pkg` 실제 설치·실행·제거까지 검사합니다.
 
-새 버전을 배포할 때는 `Cargo.toml`, `web/package.json`, `web/package-lock.json`의 버전을 함께 바꾸고 `main`에 푸시한 다음, 동일한 버전의 태그를 푸시합니다. 예를 들어 버전이 `0.2.0`이라면 `v0.2.0` 태그를 푸시합니다. 세 OS 빌드와 검증이 모두 성공해야 GitHub Release가 자동 생성되고 설치 파일과 `SHA256SUMS`가 첨부됩니다. 이미 발행한 태그와 릴리스의 파일은 덮어쓰지 않고 새 버전 태그를 만듭니다.
+새 버전을 배포할 때는 `Cargo.toml`, `web/package.json`, `web/package-lock.json`, `npm/package.json`의 버전을 함께 바꾸고 `main`에 푸시한 다음, 동일한 버전의 태그를 푸시합니다. 예를 들어 버전이 `0.2.0`이라면 `v0.2.0` 태그를 푸시합니다. 세 OS 빌드와 npm 묶음 검증이 모두 성공해야 GitHub Release가 생성됩니다. npm의 `pk-proxy-manager` 패키지는 `build.yml`을 신뢰 게시자로 등록한 뒤 태그 빌드에서 자동 게시됩니다. 이미 게시한 버전은 덮어쓰지 않고 새 버전 태그를 만듭니다.

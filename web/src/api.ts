@@ -11,6 +11,7 @@ export interface Settings {
 
 export interface Status {
   version: string
+  install_source: 'npm' | 'native'
   ssh_alive: boolean
   http_alive: boolean
   ssh_target: string

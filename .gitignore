@@ -1,6 +1,7 @@
 /target
 /web/node_modules
 /web/dist
+/npm/binaries
 /design-qa.md
 /.env
 /.env.*

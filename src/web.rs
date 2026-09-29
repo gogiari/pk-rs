@@ -27,6 +27,7 @@ struct WebAssets;
 #[derive(Serialize)]
 pub struct StatusResponse {
     pub version: &'static str,
+    pub install_source: &'static str,
     pub ssh_alive: bool,
     pub http_alive: bool,
     pub ssh_target: String,
@@ -139,6 +140,11 @@ async fn get_status(State(state): State<AppState>) -> Json<StatusResponse> {
 
     Json(StatusResponse {
         version: env!("CARGO_PKG_VERSION"),
+        install_source: if std::env::var("PK_INSTALL_SOURCE").as_deref() == Ok("npm") {
+            "npm"
+        } else {
+            "native"
+        },
         ssh_alive,
         http_alive,
         ssh_target: cfg.ssh_target,

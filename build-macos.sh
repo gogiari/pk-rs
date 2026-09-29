@@ -41,6 +41,7 @@ lipo -create \
     "$CARGO_TARGET_DIR/aarch64-apple-darwin/release/pk" \
     -output "$binary"
 chmod 755 "$binary"
+install -m 755 "$binary" "$output_dir/npm-pk-macos-universal"
 
 python3 - "$app/Contents/Info.plist" "$version" <<'PY'
 import plistlib
