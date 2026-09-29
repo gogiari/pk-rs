@@ -162,6 +162,8 @@ jobs:
               if not files[name]['mode'] & 0o111:
                   raise SystemExit(f'Executable bit missing from npm tarball: {name}')
           PY
+          mkdir -p npm-dist
+          npm pack ./npm --ignore-scripts --pack-destination npm-dist
       - uses: actions/upload-artifact@v7
         with:
           name: pk-npm-package
@@ -169,6 +171,11 @@ jobs:
             npm-assets/npm-pk-windows-x64.exe
             npm-assets/npm-pk-linux-x64
             npm-assets/npm-pk-macos-universal
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pk-npm-tarball
+          path: npm-dist/*.tgz
           if-no-files-found: error
 
   release:
@@ -239,15 +246,8 @@ jobs:
           package-manager-cache: false
       - uses: actions/download-artifact@v8
         with:
-          name: pk-npm-package
-          path: npm-assets
+          name: pk-npm-tarball
+          path: npm-dist
       - name: Publish npm package through trusted publishing
         run: |
-          mkdir -p npm/binaries/win32-x64 npm/binaries/linux-x64 npm/binaries/darwin-universal
-          cp npm-assets/npm-pk-windows-x64.exe npm/binaries/win32-x64/pk.exe
-          cp npm-assets/npm-pk-linux-x64 npm/binaries/linux-x64/pk
-          cp npm-assets/npm-pk-macos-universal npm/binaries/darwin-universal/pk
-          chmod 755 npm/binaries/linux-x64/pk npm/binaries/darwin-universal/pk
-          npm --prefix npm test
-          cd npm
-          npm publish --access public
+          npm publish npm-dist/pk-proxy-manager-*.tgz --access public
