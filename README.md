@@ -4,12 +4,14 @@ Rust로 만든 SSH 터널, HTTP-to-SOCKS5 프록시, 웹 설정 GUI 및 CLI 래�
 
 ## 빠른 설치 (npm)
 
-Node.js 18 이상이 설치되어 있다면 Windows x64, macOS Intel/Apple Silicon, Linux x64에서 같은 명령을 사용합니다.
+Node.js 18 이상이 설치되어 있다면 Windows x64, macOS Intel/Apple Silicon, Linux x64에서 같은 방식으로 설치할 수 있습니다. npm 레지스트리의 이름별 게시가 완료되기 전까지는 GitHub Release의 패키지를 직접 설치하세요.
 
 ```bash
-npm install -g pk-proxy-manager
+npm install -g https://github.com/gogiari/pk-rs/releases/download/v0.1.2/pk-proxy-manager-0.1.2.tgz
 pk ui
 ```
+
+npm 레지스트리 게시가 완료되면 `npm install -g pk-proxy-manager` 명령도 사용할 수 있습니다.
 
 `pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트 전에는 `pk stop`으로 서비스를 종료한 뒤 `npm install -g pk-proxy-manager@latest`를 실행하세요. 제거할 때도 `pk stop` 후 `npm uninstall -g pk-proxy-manager`를 사용합니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
 
@@ -90,7 +92,7 @@ ocx-proxy
 
 ## 다운로드 및 업데이트
 
-CLI 사용자는 `npm install -g pk-proxy-manager`로 설치하고, 업데이트할 때는 `pk stop` 후 `npm install -g pk-proxy-manager@latest`를 실행하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 Release 페이지로 안내합니다. npm으로 설치했다면 알림이 뜬 뒤 npm 업데이트 명령을 사용하세요.
+CLI 사용자는 위의 GitHub Release 패키지 URL로 npm 설치할 수 있습니다. npm 레지스트리 게시 후에는 `npm install -g pk-proxy-manager`로 설치하고, 업데이트할 때는 `pk stop` 후 `npm install -g pk-proxy-manager@latest`를 실행하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 Release 페이지로 안내합니다.
 
 | 운영체제 | 다운로드 | 업데이트 |
 | --- | --- | --- |
