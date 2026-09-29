@@ -5,6 +5,7 @@ import {
   KeyIcon, LockKeyIcon, MoonIcon, RocketLaunchIcon, SignOutIcon, SunIcon, TerminalWindowIcon,
 } from '@phosphor-icons/react'
 import { getConfig, getLogs, getStatus, saveConfig, tunnelAction, type Settings, type Status } from './api'
+import { getLatestRelease, isNewerVersion, type LatestRelease } from './update'
 import rocketMark from './assets/rocket-mark.png'
 
 const defaultSettings: Settings = {
@@ -17,6 +18,7 @@ type Pending = 'save' | 'connect' | 'disconnect' | null
 type ConnectionState = 'loading' | 'unavailable' | 'connected' | 'disconnected'
 type ServiceState = 'online' | 'offline' | 'unknown' | 'waiting'
 type ThemePreference = 'system' | 'dark' | 'light'
+type UpdateState = 'checking' | 'current' | 'available' | 'error'
 
 function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback
@@ -65,6 +67,8 @@ export default function App() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; success: boolean } | null>(null)
   const [activeSection, setActiveSection] = useState<'overview' | 'connection' | 'logs'>('connection')
+  const [updateState, setUpdateState] = useState<UpdateState>('checking')
+  const [latestRelease, setLatestRelease] = useState<LatestRelease | null>(null)
 
   useEffect(() => {
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
@@ -89,6 +93,19 @@ export default function App() {
     catch { setLogsError(true) }
     finally { setLogsLoading(false) }
   }, [])
+
+  const checkForUpdates = useCallback(async (installedVersion: string) => {
+    setUpdateState('checking')
+    try {
+      const release = await getLatestRelease()
+      setLatestRelease(release)
+      setUpdateState(isNewerVersion(release.version, installedVersion) ? 'available' : 'current')
+    } catch { setUpdateState('error') }
+  }, [])
+
+  useEffect(() => {
+    if (status?.version) void checkForUpdates(status.version)
+  }, [status?.version, checkForUpdates])
 
   useEffect(() => {
     void getConfig().then((config) => {
@@ -203,6 +220,16 @@ export default function App() {
 
     <div className="workspace">
       {toast && <div className={'toast ' + (toast.success ? 'success' : 'error')} role="status">{toast.message}</div>}
+      {status?.version && <div className={'update-strip ' + updateState} role="status">
+        <span className="update-version">v{status.version}</span>
+        <span className="update-description">{updateState === 'checking' ? '새 버전 확인 중…'
+          : updateState === 'available' ? `새 버전 v${latestRelease?.version}을 사용할 수 있습니다.`
+            : updateState === 'current' ? '최신 버전입니다.' : '새 버전을 확인할 수 없습니다.'}</span>
+        {updateState === 'available' && latestRelease && <a className="update-link" href={latestRelease.url} target="_blank" rel="noopener noreferrer">
+          다운로드<ArrowRightIcon size={15} aria-hidden="true" /></a>}
+        {updateState !== 'available' && <button type="button" className="update-check" disabled={updateState === 'checking'}
+          onClick={() => void checkForUpdates(status.version)}><ArrowClockwiseIcon size={15} aria-hidden="true" />다시 확인</button>}
+      </div>}
       <section className={'status-section ' + connectionState} id="overview" aria-labelledby="connection-headline">
         <h2 id="connection-headline">연결</h2>
         <div className="status-line">

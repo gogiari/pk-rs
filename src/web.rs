@@ -26,6 +26,7 @@ struct WebAssets;
 
 #[derive(Serialize)]
 pub struct StatusResponse {
+    pub version: &'static str,
     pub ssh_alive: bool,
     pub http_alive: bool,
     pub ssh_target: String,
@@ -137,6 +138,7 @@ async fn get_status(State(state): State<AppState>) -> Json<StatusResponse> {
     let http_alive = state.tunnel.is_http_alive().await;
 
     Json(StatusResponse {
+        version: env!("CARGO_PKG_VERSION"),
         ssh_alive,
         http_alive,
         ssh_target: cfg.ssh_target,

@@ -10,6 +10,7 @@ export interface Settings {
 }
 
 export interface Status {
+  version: string
   ssh_alive: boolean
   http_alive: boolean
   ssh_target: string

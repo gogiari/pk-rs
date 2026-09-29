@@ -150,6 +150,13 @@ a, button, input, summary { -webkit-tap-highlight-color: transparent; }
   background: var(--bg);
 }
 .workspace > * { width: 100%; max-width: 960px; margin-inline: auto; }
+.update-strip { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; min-height: 34px; margin-bottom: 19px; color: var(--muted); font-size: 12px; }
+.update-strip.available { padding: 9px 12px; color: var(--text); background: var(--accent-soft); border: 1px solid var(--selected-border); border-radius: 6px; }
+.update-version { color: var(--soft); font-weight: 700; white-space: nowrap; }
+.update-description { flex: 1; min-width: 150px; }
+.update-link, .update-check { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); font-size: 12px; font-weight: 680; text-decoration: none; white-space: nowrap; }
+.update-link:hover, .update-check:hover:not(:disabled) { text-decoration: underline; }
+.update-check { padding: 3px 0; background: none; border: 0; }
 .status-section h2 {
   font-size: 24px;
   letter-spacing: -.035em;

@@ -146,4 +146,4 @@ jobs:
           (cd release-assets && sha256sum ./* > SHA256SUMS)
           gh release create "$RELEASE_TAG" release-assets/* \
             --verify-tag --generate-notes \
-            --notes 'macOS 패키지는 아직 서명·공증되지 않았습니다. 저장소에 접근 권한이 있는 사용자만 이 비공개 릴리스를 다운로드할 수 있습니다.'
+            --notes '운영체제에 맞는 설치 파일을 다운로드해 실행하세요. 새 버전은 기존 설치를 갱신하며 개인 설정은 유지됩니다. macOS 패키지는 아직 서명·공증되지 않았습니다.'

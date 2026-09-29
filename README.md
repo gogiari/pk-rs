@@ -77,7 +77,7 @@ ocx-proxy
 
 ## 다운로드 및 업데이트
 
-[GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에서 운영체제에 맞는 설치 파일을 내려받으세요. 저장소가 비공개이므로 접근 권한이 있는 GitHub 계정으로 로그인해야 합니다. Releases에 첨부된 `SHA256SUMS`로 다운로드한 파일을 검증할 수 있습니다.
+[GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에서 운영체제에 맞는 설치 파일을 내려받으세요. Releases에 첨부된 `SHA256SUMS`로 다운로드한 파일을 검증할 수 있습니다. 대시보드는 실행할 때 새 버전을 확인하고, 사용 가능한 버전이 있으면 설치 파일 페이지로 안내합니다. 업데이트 설치는 사용자가 직접 진행합니다.
 
 | 운영체제 | 다운로드 | 업데이트 |
 | --- | --- | --- |
