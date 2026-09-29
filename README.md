@@ -75,6 +75,24 @@ agy-proxy
 ocx-proxy
 ```
 
-## 자동 빌드
+## 다운로드 및 업데이트
 
-GitHub의 `main` 푸시, Pull Request, 수동 실행에서 Windows·Linux·macOS 빌드와 대시보드 검증을 실행합니다. 성공한 설치 파일은 해당 Actions 실행의 Artifacts에서 내려받을 수 있습니다. macOS 작업은 `.pkg` 실제 설치·실행·제거까지 검사합니다. 현재 자동 빌드는 GitHub Release를 발행하지 않으며, macOS 패키지는 기본적으로 서명되지 않습니다.
+[GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에서 운영체제에 맞는 설치 파일을 내려받으세요. 저장소가 비공개이므로 접근 권한이 있는 GitHub 계정으로 로그인해야 합니다. Releases에 첨부된 `SHA256SUMS`로 다운로드한 파일을 검증할 수 있습니다.
+
+| 운영체제 | 다운로드 | 업데이트 |
+| --- | --- | --- |
+| Windows x64 | `*_windows-x64-setup.exe` | 새 설치 파일을 실행하면 기존 앱을 종료하고 교체합니다. 개인 설정은 유지됩니다. |
+| macOS Intel·Apple Silicon | `*_macos-universal.pkg` | `pk stop` 후 새 `.pkg`를 설치합니다. 개인 설정은 유지됩니다. |
+| Ubuntu·Debian x64 | `*.deb` | 새 패키지를 `sudo apt install ./파일명.deb`로 설치합니다. |
+| Fedora·RHEL x64 | `*.rpm` | 새 패키지를 `sudo dnf install ./파일명.rpm`으로 설치합니다. |
+| Alpine x64 | `*.apk` | 새 패키지를 `sudo apk add --allow-untrusted ./파일명.apk`로 설치합니다. |
+| Arch x64 | `*.pkg.tar.zst` | 새 패키지를 `sudo pacman -U ./파일명.pkg.tar.zst`로 설치합니다. |
+| 기타 Linux x64 | `*.tar.gz` | `pk stop` 후 새 압축 파일을 풀어 `./install.sh`를 다시 실행합니다. |
+
+macOS CI 패키지는 아직 서명·공증되지 않았습니다. 배포판별 Linux 패키지는 생성·구조 검증을 거치지만, Ubuntu 외 배포판에서의 실제 설치 검증은 추가로 필요합니다.
+
+## 자동 빌드 및 릴리스
+
+GitHub의 `main` 푸시, Pull Request, 수동 실행에서 Windows·Linux·macOS 빌드와 대시보드 검증을 실행합니다. 성공한 설치 파일은 해당 Actions 실행의 Artifacts에서도 내려받을 수 있습니다. macOS 작업은 `.pkg` 실제 설치·실행·제거까지 검사합니다.
+
+새 버전을 배포할 때는 `Cargo.toml`, `web/package.json`, `web/package-lock.json`의 버전을 함께 바꾸고 `main`에 푸시한 다음, 동일한 버전의 태그를 푸시합니다. 예를 들어 버전이 `0.2.0`이라면 `v0.2.0` 태그를 푸시합니다. 세 OS 빌드와 검증이 모두 성공해야 GitHub Release가 자동 생성되고 설치 파일과 `SHA256SUMS`가 첨부됩니다. 이미 발행한 태그와 릴리스의 파일은 덮어쓰지 않고 새 버전 태그를 만듭니다.

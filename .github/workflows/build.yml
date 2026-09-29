@@ -3,6 +3,7 @@ name: Build and verify
 on:
   push:
     branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
@@ -96,3 +97,53 @@ jobs:
           name: pk-macos-universal
           path: target/macos-dist/*.pkg
           if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, linux, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check release version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import tomllib
+
+          with open('Cargo.toml', 'rb') as source:
+              version = tomllib.load(source)['package']['version']
+          with open('web/package.json', encoding='utf-8') as source:
+              web_version = json.load(source)['version']
+          with open('web/package-lock.json', encoding='utf-8') as source:
+              lock_version = json.load(source)['version']
+          tag = os.environ['RELEASE_TAG']
+          if tag != f'v{version}' or web_version != version or lock_version != version:
+              raise SystemExit(
+                  f'Version mismatch: tag={tag}, Cargo={version}, '
+                  f'web={web_version}, lock={lock_version}'
+              )
+          PY
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: pk-*
+          path: release-assets
+          merge-multiple: true
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          test -f release-assets/pk-installer.exe
+          test -n "$(find release-assets -maxdepth 1 -name '*.pkg' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*.deb' -print -quit)"
+          mv release-assets/pk-installer.exe "release-assets/pk-proxy-manager_${RELEASE_TAG#v}_windows-x64-setup.exe"
+          (cd release-assets && sha256sum ./* > SHA256SUMS)
+          gh release create "$RELEASE_TAG" release-assets/* \
+            --verify-tag --generate-notes \
+            --notes 'macOS 패키지는 아직 서명·공증되지 않았습니다. 저장소에 접근 권한이 있는 사용자만 이 비공개 릴리스를 다운로드할 수 있습니다.'
