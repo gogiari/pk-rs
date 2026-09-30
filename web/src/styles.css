@@ -157,6 +157,11 @@ a, button, input, summary { -webkit-tap-highlight-color: transparent; }
 .update-link, .update-check { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); font-size: 12px; font-weight: 680; text-decoration: none; white-space: nowrap; }
 .update-link:hover, .update-check:hover:not(:disabled) { text-decoration: underline; }
 .update-check { padding: 3px 0; background: none; border: 0; }
+.update-note, .update-confirm { flex-basis: 100%; margin: 2px 0; }
+.update-note { overflow-wrap: anywhere; }
+.update-note.error { color: var(--danger); }
+.update-confirm p { margin: 4px 0 10px; }
+.update-confirm button + button { margin-left: 8px; }
 .status-section h2 {
   font-size: 24px;
   letter-spacing: -.035em;

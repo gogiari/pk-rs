@@ -10,6 +10,7 @@ mod socks;
 mod tunnel;
 mod web;
 mod wsl_browser;
+mod updater;
 
 use config::Config;
 use std::env;

@@ -68,6 +68,7 @@ pub async fn run_web_server(state: AppState, port: u16) -> Result<(), String> {
         .route("/", get(index_handler))
         .route("/assets/*path", get(asset_handler))
         .route("/api/status", get(get_status))
+        .route("/api/update", get(get_update).post(start_update))
         .route("/api/logs", get(get_logs))
         .route("/api/browsers", get(get_browsers))
         .route("/api/browser-default", get(get_browser_default).post(save_browser_default))
@@ -176,6 +177,36 @@ async fn get_status(State(state): State<AppState>) -> Json<StatusResponse> {
 async fn get_logs() -> Json<Vec<String>> {
     let logs = crate::logger::get_recent_logs(80);
     Json(logs)
+}
+
+async fn get_update() -> Result<Json<serde_json::Value>, BrowserApiError> {
+    let info = tokio::task::spawn_blocking(crate::updater::info).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(info))
+}
+
+async fn start_update(State(state): State<AppState>, headers: HeaderMap, Json(_): Json<serde_json::Value>)
+    -> Result<(StatusCode, Json<serde_json::Value>), BrowserApiError> {
+    let cfg = state.config.lock().await.clone();
+    check_browser_origin(&headers, cfg.web_port)?;
+    let job = tokio::task::spawn_blocking(move || crate::updater::begin(cfg.web_port, cfg.http_port, cfg.socks_port)).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    tokio::spawn(async move {
+        // Allow the HTTP response to reach the browser before shutting down.
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        for _ in 0..60 {
+            if crate::updater::ready() {
+                if state.tunnel.stop_ssh().await.is_ok() {
+                    crate::daemon::remove_pid_file();
+                    std::process::exit(0);
+                }
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+        }
+    });
+    Ok((StatusCode::ACCEPTED, Json(job)))
 }
 
 async fn get_config(State(state): State<AppState>) -> Json<Config> {

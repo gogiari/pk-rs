@@ -32,6 +32,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/smoke-browsers.py target/release/pk.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/smoke-update.py target/release/pk.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Stage npm executable
         shell: pwsh
         run: |
@@ -67,6 +69,7 @@ jobs:
           cargo test --bin pk
           python3 scripts/smoke-dashboard.py npm/binaries/linux-x64/pk
           python3 scripts/smoke-browsers.py npm/binaries/linux-x64/pk
+          python3 scripts/smoke-update.py npm/binaries/linux-x64/pk
           python3 scripts/smoke-stop-ssh.py npm/binaries/linux-x64/pk
       - name: Test npm executable
         run: |
@@ -93,6 +96,7 @@ jobs:
           cargo test --bin pk
           python3 scripts/smoke-dashboard.py npm/binaries/darwin-universal/pk
           python3 scripts/smoke-browsers.py npm/binaries/darwin-universal/pk
+          python3 scripts/smoke-update.py npm/binaries/darwin-universal/pk
           python3 scripts/smoke-stop-ssh.py npm/binaries/darwin-universal/pk
       - name: Test npm executable
         run: |
@@ -156,6 +160,7 @@ jobs:
           import json
           names = {file['path'] for file in json.load(open('npm-pack.json'))[0]['files']}
           required = {
+              'updater.cjs',
               'binaries/win32-x64/pk.exe',
               'binaries/linux-x64/pk',
               'binaries/darwin-universal/pk',

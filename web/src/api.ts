@@ -87,6 +87,18 @@ async function getJson<T>(path: string): Promise<T> {
 
 export const getConfig = () => getJson<Settings>('/api/config')
 export const getStatus = () => getJson<Status>('/api/status')
+export interface UpdateJob { id: string; phase: 'starting' | 'ready' | 'installing' | 'restarting' | 'complete' | 'failed'; message: string }
+export interface UpdateInfo { available: boolean; reason: string | null; job: UpdateJob | null }
+export async function getUpdateInfo(): Promise<UpdateInfo> {
+  const response = await checkResponse(await fetch('/api/update', { cache: 'no-store', signal: AbortSignal.timeout(20000) }))
+  return response.json() as Promise<UpdateInfo>
+}
+export async function startNpmUpdate(): Promise<UpdateJob> {
+  const response = await checkResponse(await fetch('/api/update', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  }))
+  return response.json() as Promise<UpdateJob>
+}
 export const getLogs = () => getJson<string[]>('/api/logs')
 
 export async function saveConfig(settings: Settings): Promise<void> {

@@ -23,6 +23,7 @@ export function isNewerVersion(latest: string, installed: string): boolean {
 
 export async function getLatestRelease(): Promise<LatestRelease> {
   const response = await fetch(packageApi, {
+    cache: 'no-store',
     headers: { Accept: 'application/json' },
     signal: AbortSignal.timeout(8000),
   })

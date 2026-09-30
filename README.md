@@ -145,7 +145,11 @@ Chrome·Edge의 PK 전용 창은 `--test-type=browser`로 DNS 설정 옵션에 �
 
 ## 설치 및 업데이트
 
-`npm install -g @gomul82/pk`로 설치하고, 업데이트할 때는 `pk stop` 후 `npm install -g @gomul82/pk@latest`를 실행하세요. 대시보드는 npm에서 새 버전을 확인하고 업데이트 명령을 안내합니다. 제거할 때는 `pk stop` 후 `npm uninstall -g @gomul82/pk`를 실행합니다. 개인 설정은 유지됩니다.
+대시보드는 열 때와 30분마다 npm에서 새 버전을 확인합니다. npm 전역 설치의 새 버전이 있으면 **npm으로 업데이트**를 누르고 연결 중단 안내를 확인한 뒤 **업데이트 시작**을 누르세요. 별도 Node.js 프로세스가 PK 종료, 같은 npm 전역 설치 위치에 새 버전 설치, PK 재시작을 처리합니다. 완료되면 화면을 자동으로 새로고침합니다. 업데이트 중 프록시 연결이 잠시 끊기며, 저장된 자동 연결 설정이 없다면 다시 연결해야 합니다. 개인 설정은 유지됩니다.
+
+UI 업데이트는 0.1.8부터 지원합니다. 이전 버전이나 npm 외 설치는 `pk stop` 후 `npm install -g @gomul82/pk@latest`, `pk ui`로 한 번 업데이트하세요. PK를 npm 명령으로 실행해야 설치 환경을 확인할 수 있습니다. WSL의 Linux PK는 Linux npm으로 업데이트하며 Windows PK 설치는 필요하지 않습니다. 쓰기 권한이나 npm 설치 환경이 맞지 않으면 실행 전에 이유를 안내합니다. npm 설치가 실패하면 기존 실행 파일의 복사본으로 PK를 다시 시작하여 오류를 확인할 수 있게 합니다. 설치 로그는 설정 폴더의 `npm-update/npm.log`에 저장합니다. 필요하면 터미널에서 npm으로 재설치한 뒤 `pk restart`를 실행하세요.
+
+제거할 때는 `pk stop` 후 `npm uninstall -g @gomul82/pk`를 실행합니다. 개인 설정은 유지됩니다.
 
 ## 자동 빌드 및 npm 배포
 

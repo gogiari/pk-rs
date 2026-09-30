@@ -21,6 +21,8 @@ Safari is supported on macOS using the existing Safari profile and macOS network
 
 Stop the service with `pk stop` before updating or removing the package. Then run either `npm install -g @gomul82/pk@latest` to update or `npm uninstall -g @gomul82/pk` to remove it.
 
+From v0.1.8, the dashboard checks npm at startup and every 30 minutes. Use its npm update button to stop PK, install into the same global prefix, and restart. Proxy connections briefly disconnect; reconnect if automatic connection is not configured. Settings are preserved. Installation failures restart the previous executable so the dashboard can report the error. If npm or write permissions are unavailable, use the terminal commands above. Older versions need one terminal update to enable this button.
+
 Do not run `pk install`; npm registers the commands already. Distribution is supported through npm only. Native installers and desktop shortcuts are not provided.
 
 The dashboard listens on `127.0.0.1` only. Configuration is saved outside the npm package and is retained on removal.

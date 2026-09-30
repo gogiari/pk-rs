@@ -1,6 +1,6 @@
 {
   "name": "@gomul82/pk",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "Local SSH tunnel and HTTP proxy manager with a web dashboard",
   "repository": {
     "type": "git",
@@ -25,6 +25,7 @@
     "README.md",
     "bin/",
     "launcher.cjs",
+    "updater.cjs",
     "binaries/"
   ],
   "scripts": {

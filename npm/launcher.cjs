@@ -37,7 +37,7 @@ function run(command) {
     }
     const result = spawnSync(executable, commandArgs(command, args), {
       stdio: 'inherit',
-      env: { ...process.env, PK_INSTALL_SOURCE: 'npm' },
+      env: { ...process.env, PK_INSTALL_SOURCE: 'npm', PK_NPM_NODE: process.execPath, PK_NPM_ROOT: __dirname },
     });
     if (result.error) throw result.error;
     process.exitCode = result.status ?? (result.signal === 'SIGINT' ? 130 : 1);
