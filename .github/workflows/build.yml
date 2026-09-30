@@ -250,4 +250,4 @@ jobs:
           path: npm-dist
       - name: Publish npm package through trusted publishing
         run: |
-          npm publish npm-dist/gomul82-pk-*.tgz --access public
+          npm publish ./npm-dist/gomul82-pk-*.tgz --access public
