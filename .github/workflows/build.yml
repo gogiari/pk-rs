@@ -228,7 +228,7 @@ jobs:
           (cd release-assets && sha256sum ./* > SHA256SUMS)
           gh release create "$RELEASE_TAG" release-assets/* \
             --verify-tag --generate-notes \
-            --notes '운영체제에 맞는 설치 파일을 다운로드해 실행하세요. 새 버전은 기존 설치를 갱신하며 개인 설정은 유지됩니다. macOS 패키지는 아직 서명·공증되지 않았습니다.'
+            --notes 'npm 설치: npm install -g @gomul82/pk. 실행: pk ui. 기존 pk-proxy-manager 사용자는 pk stop 후 npm uninstall -g pk-proxy-manager를 실행하고 새 패키지를 설치하세요. OS별 설치 파일도 제공합니다. 개인 설정은 유지됩니다. macOS 패키지는 아직 서명·공증되지 않았습니다.'
 
   npm-publish:
     if: startsWith(github.ref, 'refs/tags/v') && vars.NPM_TRUSTED_PUBLISHER_ENABLED == 'true'
@@ -250,4 +250,4 @@ jobs:
           path: npm-dist
       - name: Publish npm package through trusted publishing
         run: |
-          npm publish npm-dist/pk-proxy-manager-*.tgz --access public
+          npm publish npm-dist/gomul82-pk-*.tgz --access public

@@ -25,7 +25,7 @@ function commandArgs(command, args) {
 function run(command) {
   const args = process.argv.slice(2);
   if (command === 'pk' && (args[0] === 'install' || args[0] === 'uninstall')) {
-    console.error(`This npm installation already registers all commands. Use "npm uninstall -g pk-proxy-manager" to remove it.`);
+    console.error(`This npm installation already registers all commands. Use "npm uninstall -g @gomul82/pk" to remove it.`);
     process.exitCode = 1;
     return;
   }
@@ -33,7 +33,7 @@ function run(command) {
   try {
     const executable = binaryPath();
     if (!fs.existsSync(executable)) {
-      throw new Error(`Missing ${executable}. Reinstall pk-proxy-manager or download the native installer from GitHub Releases.`);
+      throw new Error(`Missing ${executable}. Reinstall @gomul82/pk or download the native installer from GitHub Releases.`);
     }
     const result = spawnSync(executable, commandArgs(command, args), {
       stdio: 'inherit',
@@ -42,7 +42,7 @@ function run(command) {
     if (result.error) throw result.error;
     process.exitCode = result.status ?? (result.signal === 'SIGINT' ? 130 : 1);
   } catch (error) {
-    console.error(`pk-proxy-manager: ${error.message}`);
+    console.error(`@gomul82/pk: ${error.message}`);
     process.exitCode = 1;
   }
 }

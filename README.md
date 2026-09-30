@@ -7,13 +7,15 @@ Rust로 만든 SSH 터널, HTTP-to-SOCKS5 프록시, 웹 설정 GUI 및 CLI 래�
 Node.js 18 이상이 설치되어 있다면 Windows x64, macOS Intel/Apple Silicon, Linux x64에서 같은 방식으로 설치할 수 있습니다.
 
 ```bash
-npm install -g pk-proxy-manager
+npm install -g @gomul82/pk
 pk ui
 ```
 
-패키지 정보와 배포 버전은 [npm](https://www.npmjs.com/package/pk-proxy-manager)에서 확인할 수 있습니다.
+패키지 정보와 배포 버전은 [npm](https://www.npmjs.com/package/@gomul82/pk)에서 확인할 수 있습니다.
 
-`pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트 전에는 `pk stop`으로 서비스를 종료한 뒤 `npm install -g pk-proxy-manager@latest`를 실행하세요. 제거할 때도 `pk stop` 후 `npm uninstall -g pk-proxy-manager`를 사용합니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
+`pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트 전에는 `pk stop`으로 서비스를 종료한 뒤 `npm install -g @gomul82/pk@latest`를 실행하세요. 제거할 때도 `pk stop` 후 `npm uninstall -g @gomul82/pk`를 사용합니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
+
+기존 `pk-proxy-manager` 패키지에서 이동하려면 `pk stop` 후 `npm uninstall -g pk-proxy-manager`를 실행하고 `npm install -g @gomul82/pk`로 설치하세요. 두 패키지는 같은 전역 명령을 등록하므로 기존 패키지를 먼저 제거합니다. 개인 설정은 유지됩니다.
 
 Node.js 없이 설치하려면 [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)의 OS별 설치 파일을 사용하세요. npm 설치에는 앱 메뉴·바탕화면 바로가기가 포함되지 않습니다.
 
@@ -92,7 +94,7 @@ ocx-proxy
 
 ## 다운로드 및 업데이트
 
-CLI 사용자는 `npm install -g pk-proxy-manager`로 설치하고, 업데이트할 때는 `pk stop` 후 `npm install -g pk-proxy-manager@latest`를 실행하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 npm 설치에는 업데이트 명령을, OS별 설치에는 Release 페이지를 안내합니다.
+CLI 사용자는 `npm install -g @gomul82/pk`로 설치하고, 업데이트할 때는 `pk stop` 후 `npm install -g @gomul82/pk@latest`를 실행하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 npm 설치에는 업데이트 명령을, OS별 설치에는 Release 페이지를 안내합니다.
 
 | 운영체제 | 다운로드 | 업데이트 |
 | --- | --- | --- |
@@ -110,4 +112,4 @@ macOS CI 패키지는 아직 서명·공증되지 않았습니다. 배포판별 
 
 GitHub의 `main` 푸시, Pull Request, 수동 실행에서 Windows·Linux·macOS 빌드와 대시보드 검증을 실행합니다. 성공한 설치 파일은 해당 Actions 실행의 Artifacts에서도 내려받을 수 있습니다. macOS 작업은 `.pkg` 실제 설치·실행·제거까지 검사합니다.
 
-새 버전을 배포할 때는 `Cargo.toml`, `web/package.json`, `web/package-lock.json`, `npm/package.json`의 버전을 함께 바꾸고 `main`에 푸시한 다음, 동일한 버전의 태그를 푸시합니다. 예를 들어 버전이 `0.2.0`이라면 `v0.2.0` 태그를 푸시합니다. 세 OS 빌드와 npm 묶음 검증이 모두 성공해야 GitHub Release가 생성됩니다. npm의 `pk-proxy-manager` 패키지는 `build.yml`을 신뢰 게시자로 등록하고 저장소 변수 `NPM_TRUSTED_PUBLISHER_ENABLED=true`를 설정한 상태에서 태그 빌드로 자동 게시됩니다. 별도 npm 토큰은 필요하지 않습니다. 이미 게시한 버전은 덮어쓰지 않고 새 버전 태그를 만듭니다.
+새 버전을 배포할 때는 `Cargo.toml`, `web/package.json`, `web/package-lock.json`, `npm/package.json`의 버전을 함께 바꾸고 `main`에 푸시한 다음, 동일한 버전의 태그를 푸시합니다. 예를 들어 버전이 `0.2.0`이라면 `v0.2.0` 태그를 푸시합니다. 세 OS 빌드와 npm 묶음 검증이 모두 성공해야 GitHub Release가 생성됩니다. npm의 `@gomul82/pk` 패키지는 `build.yml`을 신뢰 게시자로 등록하고 저장소 변수 `NPM_TRUSTED_PUBLISHER_ENABLED=true`를 설정한 상태에서 태그 빌드로 자동 게시됩니다. 별도 npm 토큰은 필요하지 않습니다. 이미 게시한 버전은 덮어쓰지 않고 새 버전 태그를 만듭니다.

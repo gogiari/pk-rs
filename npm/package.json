@@ -1,6 +1,6 @@
 {
-  "name": "pk-proxy-manager",
-  "version": "0.1.2",
+  "name": "@gomul82/pk",
+  "version": "0.1.3",
   "description": "Local SSH tunnel and HTTP proxy manager with a web dashboard",
   "repository": {
     "type": "git",

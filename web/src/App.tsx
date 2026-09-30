@@ -224,7 +224,7 @@ export default function App() {
         <span className="update-version">v{status.version}</span>
         <span className="update-description">{updateState === 'checking' ? '새 버전 확인 중…'
           : updateState === 'available' ? status.install_source === 'npm'
-            ? `새 버전 v${latestRelease?.version} · pk stop 후 npm install -g pk-proxy-manager@latest`
+            ? `새 버전 v${latestRelease?.version} · pk stop 후 npm install -g @gomul82/pk@latest`
             : `새 버전 v${latestRelease?.version}을 사용할 수 있습니다.`
             : updateState === 'current' ? '최신 버전입니다.' : '새 버전을 확인할 수 없습니다.'}</span>
         {updateState === 'available' && latestRelease && <a className="update-link" href={latestRelease.url} target="_blank" rel="noopener noreferrer">
