@@ -511,19 +511,6 @@ fn chromium_bypass(entries: &[String]) -> String {
     result.join(";")
 }
 
-fn resolver_rules(entries: &[String]) -> String {
-    let mut rules = vec!["MAP * ~NOTFOUND".to_string()];
-    // Keep local resolution available for explicitly bypassed domains.
-    for entry in chromium_bypass(entries).split(';') {
-        if entry.contains('/') || entry.starts_with('[') {
-            continue;
-        }
-        let host = entry.split(':').next().unwrap();
-        rules.push(format!("EXCLUDE {host}"));
-    }
-    rules.join(", ")
-}
-
 fn firefox_preferences(port: u16, entries: &[String]) -> String {
     let bypass = entries
         .iter()
@@ -581,12 +568,11 @@ fn launch_args(
         vec![
             profile_arg,
             "--no-first-run".into(),
-            // Suppress Chromium startup infobars while retaining the DNS rules.
-            "--test-type=browser".into(),
             "--new-window".into(),
             format!("--proxy-server=socks5://127.0.0.1:{port}").into(),
             format!("--proxy-bypass-list={}", chromium_bypass(entries)).into(),
-            format!("--host-resolver-rules={}", resolver_rules(entries)).into(),
+            // Chromium sends target hostnames to SOCKS5 for proxy-side DNS.
+            // host-resolver-rules is unnecessary here and triggers a warning.
             url.into(),
         ]
     }
@@ -808,8 +794,15 @@ mod tests {
             .any(|arg| arg == "--proxy-server=socks5://127.0.0.1:19080"));
         assert_eq!(args.last().unwrap(), "https://example.com/a?x=1&y=2");
         assert!(chromium_bypass(&entries).contains("*.tailscale.com"));
-        assert!(resolver_rules(&entries).contains("EXCLUDE *.tailscale.com"));
-        assert!(resolver_rules(&entries).contains("EXCLUDE 127.0.0.1"));
+        for kind in [BrowserKind::Chrome, BrowserKind::Edge] {
+            let args = launch_args(kind, profile, 19080, &entries, "https://example.com");
+            assert!(!args
+                .iter()
+                .any(|arg| arg.to_string_lossy().starts_with("--host-resolver-rules")));
+            assert!(!args
+                .iter()
+                .any(|arg| arg.to_string_lossy().starts_with("--test-type")));
+        }
         let prefs = firefox_preferences(19080, &entries);
         assert!(prefs.contains("user_pref(\"network.proxy.socks5_remote_dns\", true)"));
         assert!(prefs.contains("user_pref(\"network.proxy.socks_port\", 19080)"));

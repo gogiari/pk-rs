@@ -160,6 +160,7 @@ with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-", dir=os.environ.get(
                 assert 'user_pref("network.proxy.socks5_remote_dns", true);' in prefs
             else:
                 assert f"--proxy-server=socks5://127.0.0.1:{socks_port}" in args
+                assert not any(arg.startswith(("--host-resolver-rules", "--test-type")) for arg in args)
                 profile = Path(next(arg.split("=", 1)[1] for arg in args if arg.startswith("--user-data-dir=")))
                 if windows_fixture:
                     assert ":\\" in str(profile), "Windows browsers must receive Windows profile paths"
