@@ -7,7 +7,7 @@ function launcherValue(launcher: BrowserLauncher | null) {
   return launcher.mode === 'executable' ? launcher.path : launcher.mode === 'flatpak' ? launcher.app_id : launcher.name
 }
 
-function BrowserRow({ browser, connected, refresh }: { browser: BrowserInfo; connected: boolean; refresh: () => Promise<void> }) {
+function BrowserRow({ browser, connected, refresh, wsl }: { browser: BrowserInfo; connected: boolean; refresh: () => Promise<void>; wsl: boolean }) {
   const savedMode = browser.saved?.mode ?? 'auto'
   const savedValue = launcherValue(browser.saved)
   const [mode, setMode] = useState<'auto' | BrowserLauncher['mode']>(savedMode)
@@ -64,7 +64,7 @@ function BrowserRow({ browser, connected, refresh }: { browser: BrowserInfo; con
       {mode !== 'auto' && <div className="form-field"><label htmlFor={`browser-path-${id}`}>{mode === 'executable' ? '실행 파일 경로 또는 명령 이름' : mode === 'flatpak' ? 'Flatpak 앱 ID' : 'Snap 이름'}</label>
         <input id={`browser-path-${id}`} type="text" disabled={busy} autoComplete="off" value={value} onChange={(event) => { setValue(event.target.value); setMessage(null) }}
           placeholder={mode === 'executable' ? '예: D:\\Apps\\Browser\\browser.exe' : mode === 'flatpak' ? '예: org.mozilla.firefox' : '예: firefox'} />
-        <p className="field-help">{mode === 'executable' ? '경로에 따옴표나 실행 옵션을 붙이지 마세요. macOS에서는 .app 내부 실행 파일을 지정하세요.' : '설치된 패키지의 이름만 입력하세요.'}</p>
+        <p className="field-help">{mode === 'executable' ? wsl ? 'Windows 경로(C:\\Apps\\browser.exe)나 WSL 경로(/mnt/c/Apps/browser.exe)를 입력하세요. 경로에 따옴표나 실행 옵션을 붙이지 마세요.' : '경로에 따옴표나 실행 옵션을 붙이지 마세요. macOS에서는 .app 내부 실행 파일을 지정하세요.' : '설치된 패키지의 이름만 입력하세요.'}</p>
       </div>}
       <button type="button" className="button-secondary" disabled={busy} onClick={() => void save()}>실행 위치 저장</button>
     </details>}
@@ -102,7 +102,7 @@ function DefaultBrowser({ info, browsers, connected, refresh }: { info: DefaultB
   return <div className="browser-default">
     <div className="form-field"><label htmlFor="browser-default">기본 프록시 브라우저</label>
       <select id="browser-default" value={selected} disabled={busy} onChange={event => { setSelected(event.target.value as typeof selected); setMessage(null) }}>
-        <option value="system">OS 기본 브라우저{info.system ? ` (${label(info.system)})` : ''}</option>
+        <option value="system">{info.wsl ? 'Windows 기본 브라우저' : 'OS 기본 브라우저'}{info.system ? ` (${label(info.system)})` : ''}</option>
         {browsers.map(browser => <option key={browser.kind} value={browser.kind} disabled={!browser.supported}>{browser.label}{browser.kind === 'safari' ? ' (macOS)' : ''}</option>)}
       </select>
     </div>
@@ -111,6 +111,7 @@ function DefaultBrowser({ info, browsers, connected, refresh }: { info: DefaultB
       <button type="button" className="button-secondary" disabled={busy || dirty || !connected || !info.effective || effective?.system_proxy?.ready === false} onClick={() => void launch()}><GlobeIcon size={16} aria-hidden="true" />{busy ? '처리 중…' : '기본 브라우저 실행'}</button>
     </div>
     <p className="field-help"><code>pk browser</code> 실행 시 {info.preferred ? `저장된 ${label(info.preferred)}` : 'OS 기본 브라우저'}를 사용합니다. OS 기본 브라우저 설정은 바뀌지 않습니다.</p>
+    {info.wsl && <p className="field-help">WSL에서는 Windows 브라우저를 자동 검색합니다. Windows에 PK를 설치할 필요 없이 WSL의 프록시를 사용하며, Windows 브라우저 프로필은 Windows 드라이브에 저장됩니다.</p>}
     {dirty && <p className="field-help">선택을 저장하면 웹과 CLI에 함께 적용됩니다.</p>}
     {info.error && <p className="inline-note error" role="alert">{info.error}</p>}
     {message && <p className={message.error ? 'inline-note error' : 'field-help'} role={message.error ? 'alert' : 'status'}>{message.text}</p>}
@@ -140,6 +141,6 @@ export default function Browsers({ connected }: { connected: boolean }) {
     {error && <p className="inline-note error" role="alert">{error}</p>}
     {loading && <p className="field-help" role="status">브라우저 실행 위치를 확인하고 있습니다…</p>}
     {defaultInfo && <DefaultBrowser info={defaultInfo} browsers={browsers} connected={connected} refresh={refresh} />}
-    <div className="browser-grid">{browsers.map((browser) => <BrowserRow key={browser.kind} browser={browser} connected={connected} refresh={refresh} />)}</div>
+    <div className="browser-grid">{browsers.map((browser) => <BrowserRow key={browser.kind} browser={browser} connected={connected} refresh={refresh} wsl={defaultInfo?.wsl ?? false} />)}</div>
   </section>
 }

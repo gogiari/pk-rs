@@ -23,7 +23,7 @@ def free_port():
 
 
 binary = Path(sys.argv[1]).resolve()
-with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-") as temporary:
+with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-", dir=os.environ.get("PK_BROWSER_TEST_ROOT")) as temporary:
     root = Path(temporary)
     fixture_dir = root / "custom browser 한글"
     fixture_dir.mkdir()
@@ -35,7 +35,11 @@ with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-") as temporary:
         let code = std::env::var("PK_BROWSER_EXIT").unwrap_or_default().parse().unwrap_or(0);
         std::process::exit(code);
     }''', encoding="utf-8")
-    subprocess.run(["rustc", "--crate-name", "browser_fixture", str(source), "-o", str(fixture)], check=True)
+    windows_fixture = os.environ.get("PK_BROWSER_TEST_WINDOWS_EXE")
+    if windows_fixture:
+        fixture = Path(windows_fixture)
+    else:
+        subprocess.run(["rustc", "--crate-name", "browser_fixture", str(source), "-o", str(fixture)], check=True)
     config_dir = root / "settings"
     config_dir.mkdir()
     web_port, http_port = free_port(), free_port()
@@ -68,24 +72,46 @@ with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-") as temporary:
     capture = root / "argv.txt"
     environment = os.environ.copy()
     environment.update(PK_CONFIG_DIR=str(config_dir), PK_BROWSER_CAPTURE=str(capture))
+    if windows_fixture:
+        environment["WSLENV"] = environment.get("WSLENV", "") + ":PK_BROWSER_CAPTURE/p:PK_BROWSER_EXIT"
     (config_dir / "config.toml").write_text(
         f'web_port = {web_port}\nhttp_port = {http_port}\nsocks_port = {socks_port}\n'
         'auto_connect = false\nauto_open_browser = false\n', encoding="utf-8")
 
     def cli(*args, success=True):
-        result = subprocess.run([str(binary), "browser", *args], env=environment, capture_output=True, text=True, encoding="utf-8", timeout=20)
+        launching = not args or args[0] not in ("set", "reset", "list")
+        if launching and success:
+            capture.unlink(missing_ok=True)
+        result = subprocess.run([str(binary), "browser", *args], env=environment, capture_output=True, text=True, encoding="utf-8", timeout=40)
         assert (result.returncode == 0) == success, result.stderr
+        if launching and success:
+            expected = args[0] if len(args) == 1 and args[0].startswith(("http://", "https://")) else args[1] if len(args) == 2 else "about:blank"
+            wait_capture(expected)
         return result.stdout
 
+    def wait_capture(expected):
+        deadline = time.monotonic() + 8
+        while True:
+            if capture.exists() and capture.read_text(encoding="utf-8").endswith(expected):
+                return
+            assert time.monotonic() < deadline, "Windows browser fixture did not finish starting"
+            time.sleep(0.1)
+
     def api(path, body=None, status=200, origin=None):
+        launching = path.endswith("/launch") and status == 200
+        if launching:
+            capture.unlink(missing_ok=True)
         headers = {"Content-Type": "application/json"}
         if origin:
             headers["Origin"] = origin
         request = Request(f"http://127.0.0.1:{web_port}{path}", data=json.dumps(body).encode() if body is not None else None, headers=headers)
         try:
-            with urlopen(request, timeout=20) as response:
+            with urlopen(request, timeout=40) as response:
                 assert response.status == status
-                return json.load(response)
+                result = json.load(response)
+                if launching:
+                    wait_capture((body or {}).get("url") or "about:blank")
+                return result
         except HTTPError as error:
             assert error.code == status, (error.code, error.read())
             return error.read().decode()
@@ -103,6 +129,10 @@ with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-") as temporary:
                 time.sleep(0.2)
         initial = api("/api/browsers")
         system_default = api("/api/browser-default")
+        if windows_fixture:
+            assert system_default["wsl"]
+            assert system_default["system"] in ("chrome", "edge", "firefox"), system_default
+            assert all(item["detected"]["path"].lower().endswith(".exe") for item in initial if item["available"])
         assert system_default["preferred"] is None
         assert [item["kind"] for item in initial] == ["chrome", "edge", "firefox", "safari"]
         safari = initial[-1]
@@ -114,7 +144,8 @@ with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-") as temporary:
             api("/api/browsers/safari/settings", {"launcher": {"mode": "executable", "path": str(fixture)}}, status=400)
             cli("safari", success=False)
         for kind in ("chrome", "edge", "firefox"):
-            cli("set", kind, str(fixture))
+            fixture_input = subprocess.check_output(["wslpath", "-w", str(fixture)], text=True).strip() if windows_fixture else str(fixture)
+            cli("set", kind, fixture_input)
             url = f"https://example.com/{kind}?a=1&b=2"
             cli(kind, url)
             args = capture.read_text(encoding="utf-8").splitlines()
@@ -122,16 +153,39 @@ with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-") as temporary:
             if kind == "firefox":
                 assert "--no-remote" in args
                 profile = Path(args[args.index("--profile") + 1])
+                if windows_fixture:
+                    profile = Path(subprocess.check_output(["wslpath", "-u", str(profile)], text=True).strip())
                 prefs = (profile / "user.js").read_text()
                 assert f'user_pref("network.proxy.socks_port", {socks_port});' in prefs
                 assert 'user_pref("network.proxy.socks5_remote_dns", true);' in prefs
             else:
                 assert f"--proxy-server=socks5://127.0.0.1:{socks_port}" in args
                 profile = Path(next(arg.split("=", 1)[1] for arg in args if arg.startswith("--user-data-dir=")))
+                if windows_fixture:
+                    assert ":\\" in str(profile), "Windows browsers must receive Windows profile paths"
+                    profile = Path(subprocess.check_output(["wslpath", "-u", str(profile)], text=True).strip())
             assert profile == config_dir / "browser-profiles" / kind
             api(f"/api/browsers/{kind}/launch", {})
             assert capture.read_text(encoding="utf-8").splitlines()[-1] == "about:blank"
         assert all(item["saved"] and item["available"] for item in api("/api/browsers") if item["kind"] != "safari")
+        if windows_fixture:
+            # Linux-home configurations must use LOCALAPPDATA rather than a UNC profile.
+            with tempfile.TemporaryDirectory(prefix="pk-wsl-linux-config-") as linux_temporary:
+                linux_config = Path(linux_temporary)
+                (linux_config / "config.toml").write_text(f"socks_port = {socks_port}\n", encoding="utf-8")
+                linux_environment = environment.copy()
+                linux_environment["PK_CONFIG_DIR"] = str(linux_config)
+                subprocess.run([str(binary), "browser", "set", "edge", fixture_input], env=linux_environment, check=True, capture_output=True, timeout=40)
+                capture.unlink(missing_ok=True)
+                subprocess.run([str(binary), "browser", "edge"], env=linux_environment, check=True, capture_output=True, timeout=40)
+                wait_capture("about:blank")
+                args = capture.read_text(encoding="utf-8").splitlines()
+                profile_argument = next(arg.split("=", 1)[1] for arg in args if arg.startswith("--user-data-dir="))
+                assert ":\\" in profile_argument and "wsl-browser-profiles" in profile_argument
+                profile = Path(subprocess.check_output(["wslpath", "-u", profile_argument], text=True).strip()).resolve()
+                assert profile.name == "edge" and "wsl-browser-profiles" in profile.parts
+                profile.rmdir()  # The fixture creates no files; remove only the empty test profile.
+                profile.parent.rmdir()
         # The OS default uses the manual path for that kind; never change OS settings.
         if system_default["effective"] in ("chrome", "edge", "firefox"):
             cli()
@@ -188,7 +242,17 @@ with tempfile.TemporaryDirectory(prefix="pk-browser-smoke-") as temporary:
         cli("reset", "edge")
         cli("set", "edge", str(fixture))
         # An optional caller can exercise the live isolated dashboard.
-        if len(sys.argv) > 2:
+        if os.environ.get("PK_BROWSER_TEST_UI_HANDOFF"):
+            handoff = Path(os.environ["PK_BROWSER_TEST_UI_HANDOFF"])
+            reply = handoff.with_suffix(".reply.json")
+            handoff.write_text(json.dumps({"url": f"http://127.0.0.1:{web_port}", "fixture": str(fixture)}), encoding="utf-8")
+            deadline = time.monotonic() + 120
+            while not reply.exists():
+                assert time.monotonic() < deadline, "Windows UI driver did not reply"
+                time.sleep(0.2)
+            result = json.loads(reply.read_text(encoding="utf-8"))
+            assert result["success"], result
+        elif len(sys.argv) > 2:
             subprocess.run(sys.argv[2:] + [f"http://127.0.0.1:{web_port}", str(fixture)], check=True, timeout=60)
         print("Browser CLI/API: custom Unicode paths, profiles, proxy ports, saved settings, reset, URL/origin checks and SOCKS failure passed")
     finally:

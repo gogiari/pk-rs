@@ -34,6 +34,7 @@ export interface BrowserInfo {
 }
 
 export interface DefaultBrowserInfo {
+  wsl: boolean
   preferred: BrowserKind | null
   system: BrowserKind | null
   system_error: string | null

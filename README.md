@@ -103,6 +103,12 @@ $env:PK_CONFIG_DIR = "$PWD/target/browser-preview"
 
 Windows는 사용자별 HTTP/HTTPS 연결 앱과 실제 실행 파일 경로를 조회하고, macOS는 Launch Services의 기본 앱과 위치를 조회합니다. Linux는 `xdg-mime`, `xdg-settings`로 표준 Chrome/Chromium·Edge·Firefox desktop ID를 조회하며 Flatpak·Snap도 구분합니다. 별도 이름의 사용자 정의 desktop 항목은 PK 웹에서 브라우저와 실행 위치를 지정하세요.
 
+**WSL**에서는 Windows 기본 브라우저와 Windows에 설치된 Chrome·Edge·Firefox를 자동으로 조회합니다. Windows에 PK를 따로 설치하지 않아도 WSL에서 Windows 실행 파일을 직접 실행합니다. 웹에서 저장한 기본 선택과 `pk browser <브라우저>`도 동일하게 적용됩니다. 수동 실행 위치에는 `C:\Apps\Browser\browser.exe` 같은 Windows 절대 경로나 `/mnt/c/Apps/Browser/browser.exe` 같은 WSL 경로를 사용할 수 있습니다.
+
+WSL에서 Windows 브라우저를 열기 전에는 WSL과 Windows 양쪽에서 `127.0.0.1:<PK SOCKS 포트>`의 SOCKS5 응답을 확인합니다. WSL의 Windows interop, localhost 전달이 꺼져 있거나 Windows의 다른 프로그램이 같은 포트를 사용하면 설정 확인이 필요합니다. Windows 브라우저 프로필은 Windows 드라이브에 저장하고 경로를 변환합니다. PK 설정이 Windows 드라이브에 있으면 설정 폴더의 `browser-profiles`를 사용하고, Linux 파일시스템에 있으면 Windows `%LOCALAPPDATA%\pk\wsl-browser-profiles` 아래에 배포판·설정별로 저장합니다. 명시적으로 저장한 Linux 브라우저 실행 위치도 계속 사용할 수 있습니다.
+
+WSL 연결을 개발 중 검증하려면 WSL 안에서 Linux 실행 파일을 빌드한 뒤 Windows에서 `python scripts/smoke-wsl-browsers.py <WSL의 pk 실행 파일 경로> Ubuntu`를 실행합니다. Windows의 `rustc`로 테스트용 `.exe`를 만들고 실제 WSL 서버와 Windows interop을 통해 기본 브라우저 조회, 한글 실행 위치, 프로필 변환, Windows 쪽 SOCKS5 연결과 오류 차단을 검사합니다. 실제 브라우저를 실행하는 대신 인자를 기록하는 테스트 실행 파일을 사용합니다.
+
 ```bash
 pk browser                            # PK 웹 선택 또는 OS 기본 브라우저
 pk browser https://example.com        # 기본 브라우저로 URL 열기
@@ -134,6 +140,8 @@ pk browser set firefox --snap firefox
 일반 설치의 전용 프로필은 PK 설정 폴더 아래 `browser-profiles/<브라우저>`에 저장됩니다. Flatpak·Snap은 해당 앱의 사용자 데이터 폴더에 저장합니다. 실행 위치 설정은 CLI와 대시보드가 공유하며, CLI에서 변경한 뒤에는 대시보드의 **다시 검색**을 누르세요.
 
 프록시 제외 대상에는 루프백과 현재 `NO_PROXY` 설정을 적용합니다. 도메인, `*.도메인`, IP, CIDR을 사용할 수 있으며, 브라우저에서 지원하지 않는 형태는 실행 시 오류로 안내합니다. 전체 제외를 뜻하는 `*`는 지원하지 않습니다. 원격 DNS 설정은 일반 웹 요청을 위한 것으로, 브라우저의 모든 통신을 강제로 터널링하는 기능은 아닙니다.
+
+Chrome·Edge의 PK 전용 창은 `--test-type=browser`로 DNS 설정 옵션에 대한 경고 배너와 일부 시작 안내 배너를 숨깁니다. 프록시와 원격 DNS 설정은 계속 적용됩니다.
 
 ## 설치 및 업데이트
 

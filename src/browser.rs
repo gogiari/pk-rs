@@ -143,7 +143,8 @@ fn executable(path: &Path) -> bool {
 }
 
 fn resolve_program(value: &str) -> Option<PathBuf> {
-    let path = Path::new(value);
+    let input = crate::wsl_browser::input_path(value).ok()?;
+    let path = input.as_path();
     if path.is_absolute() {
         return executable(path).then(|| path.to_owned());
     }
@@ -272,6 +273,9 @@ fn from_path(path: PathBuf) -> Launcher {
 pub fn detect(kind: BrowserKind) -> Option<Launcher> {
     if !kind.supported() {
         return None;
+    }
+    if crate::wsl_browser::active() {
+        if let Some(launcher) = crate::wsl_browser::detect(kind) { return Some(launcher); }
     }
     let mut candidates = Vec::new();
     #[cfg(windows)]
@@ -457,6 +461,9 @@ pub fn profile_path(kind: BrowserKind, launcher: &Launcher) -> Result<PathBuf, S
             .to_owned(),
     };
     let profile = base.join("browser-profiles").join(kind.id());
+    if crate::wsl_browser::windows_launcher(launcher) {
+        return crate::wsl_browser::profile_path(kind, &profile);
+    }
     if profile.is_absolute() {
         Ok(profile)
     } else {
@@ -574,6 +581,8 @@ fn launch_args(
         vec![
             profile_arg,
             "--no-first-run".into(),
+            // Suppress Chromium startup infobars while retaining the DNS rules.
+            "--test-type=browser".into(),
             "--new-window".into(),
             format!("--proxy-server=socks5://127.0.0.1:{port}").into(),
             format!("--proxy-bypass-list={}", chromium_bypass(entries)).into(),
@@ -633,7 +642,7 @@ pub async fn launch(
     }
     let port = cfg.socks_port;
     let cfg = cfg.clone();
-    let (launcher, profile, entries) = tokio::task::spawn_blocking(move || {
+    let (launcher, profile, argument_profile, windows, entries) = tokio::task::spawn_blocking(move || {
         let launcher = normalize_launcher(
             kind,
             cfg.browsers
@@ -643,13 +652,18 @@ pub async fn launch(
                 .ok_or_else(|| format!("{} 실행 위치를 직접 지정하세요.", kind.label()))?,
         )?;
         let profile = profile_path(kind, &launcher)?;
+        let windows = crate::wsl_browser::windows_launcher(&launcher);
+        let argument_profile = if windows { crate::wsl_browser::argument_profile(&profile)? } else { profile.clone() };
         let entries = bypass_entries(&cfg.no_proxy)?;
-        Ok::<_, String>((launcher, profile, entries))
+        Ok::<_, String>((launcher, profile, argument_profile, windows, entries))
     })
     .await
     .map_err(|e| e.to_string())??;
     // No launch or profile write before the SOCKS handshake succeeds.
     check_socks(port).await?;
+    if windows {
+        tokio::task::spawn_blocking(move || crate::wsl_browser::check_windows_proxy(port)).await.map_err(|error| error.to_string())??;
+    }
     let result_profile = profile.clone();
     tokio::task::spawn_blocking(move || {
         fs::create_dir_all(&profile).map_err(|e| format!("프로필 폴더 생성 실패: {e}"))?;
@@ -657,7 +671,7 @@ pub async fn launch(
             fs::write(profile.join("user.js"), firefox_preferences(port, &entries)).map_err(|e| e.to_string())?;
         }
         let mut command = launcher.command()?;
-        command.args(launch_args(kind, &profile, port, &entries, &url));
+        command.args(launch_args(kind, &argument_profile, port, &entries, &url));
         let mut child = command.spawn().map_err(|e| format!("{} 실행 실패: {e}", kind.label()))?;
         std::thread::sleep(Duration::from_millis(350));
         if let Some(status) = child.try_wait().map_err(|e| e.to_string())? {

@@ -9,6 +9,7 @@ mod safari;
 mod socks;
 mod tunnel;
 mod web;
+mod wsl_browser;
 
 use config::Config;
 use std::env;

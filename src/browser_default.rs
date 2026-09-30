@@ -5,6 +5,7 @@ use std::path::PathBuf;
 
 #[derive(Serialize)]
 pub struct DefaultBrowserInfo {
+    pub wsl: bool,
     pub preferred: Option<BrowserKind>,
     pub system: Option<BrowserKind>,
     pub system_error: Option<String>,
@@ -47,6 +48,7 @@ pub fn info(cfg: &Config) -> DefaultBrowserInfo {
     let mut snapshot = cfg.clone();
     let selection = select(&mut snapshot, || system);
     DefaultBrowserInfo {
+        wsl: crate::wsl_browser::active(),
         preferred: cfg.default_browser,
         system: system_kind,
         system_error,
@@ -75,7 +77,7 @@ pub async fn launch(
     Ok((kind, profile))
 }
 
-#[cfg(any(windows, test))]
+#[cfg(any(windows, target_os = "linux", test))]
 fn windows_kind(path: &str) -> Result<BrowserKind, String> {
     match path
         .rsplit(['\\', '/'])
@@ -400,6 +402,12 @@ fn linux_registered_browser(desktop: &str) -> Result<SystemBrowser, String> {
 #[cfg(target_os = "linux")]
 fn system_browser(scheme: &str) -> Result<SystemBrowser, String> {
     use std::process::{Command, Stdio};
+    if crate::wsl_browser::active() {
+        let path = crate::wsl_browser::default_executable(scheme)?;
+        let kind = windows_kind(&path)?;
+        let path = crate::wsl_browser::input_path(&path)?;
+        return Ok(SystemBrowser { kind, launcher: Some(Launcher::Executable { path: path.to_string_lossy().into_owned() }) });
+    }
     // Protocol associations take priority; the desktop's generic default is a fallback.
     let mime = format!("x-scheme-handler/{scheme}");
     for (program, args) in [

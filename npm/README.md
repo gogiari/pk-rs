@@ -15,6 +15,8 @@ Connect the SSH tunnel in the dashboard, then run `pk browser` to open the OS de
 
 Chrome, Edge, and Firefox use persistent PK profiles. Use `pk browser list` to check detected browsers, or `pk browser set edge "D:\Apps\Edge\msedge.exe"` to save a custom executable. Linux Flatpak and Snap launchers can also be configured in the dashboard. Unknown OS default browsers require selecting a supported browser in PK.
 
+In WSL, PK detects and launches Windows browsers directly, including the Windows default browser. Windows does not need a separate PK installation. Custom paths may use Windows drive paths or WSL mount paths. Windows browser profiles stay on a Windows drive, and PK checks the SOCKS proxy from both WSL and Windows before launching. Windows interop and localhost forwarding must be available.
+
 Safari is supported on macOS using the existing Safari profile and macOS network proxy settings. Run `pk browser safari --setup` for setup instructions. These system settings also affect other apps; restore them yourself when stopping the proxy. PK checks the settings before launching Safari and does not change them automatically.
 
 Stop the service with `pk stop` before updating or removing the package. Then run either `npm install -g @gomul82/pk@latest` to update or `npm uninstall -g @gomul82/pk` to remove it.
