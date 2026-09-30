@@ -1,9 +1,15 @@
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
+use std::collections::BTreeMap;
+use crate::browser::{BrowserKind, Launcher};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(default)]
+    pub default_browser: Option<BrowserKind>,
+    #[serde(default)]
+    pub browsers: BTreeMap<BrowserKind, Launcher>,
     #[serde(default = "default_ssh_target")]
     pub ssh_target: String,
 
@@ -59,6 +65,8 @@ fn default_true() -> bool {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            default_browser: None,
+            browsers: BTreeMap::new(),
             ssh_target: default_ssh_target(),
             http_port: default_http_port(),
             socks_port: default_socks_port(),

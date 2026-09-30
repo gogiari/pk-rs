@@ -20,6 +20,51 @@ export interface Status {
   has_password: boolean
 }
 
+export type BrowserKind = 'chrome' | 'edge' | 'firefox' | 'safari'
+export type BrowserLauncher = { mode: 'executable'; path: string } | { mode: 'flatpak'; app_id: string } | { mode: 'snap'; name: string }
+export interface BrowserInfo {
+  kind: BrowserKind
+  label: string
+  saved: BrowserLauncher | null
+  detected: BrowserLauncher | null
+  available: boolean
+  error: string | null
+  supported: boolean
+  system_proxy: { ready: boolean; message: string; http_port: number; socks_port: number } | null
+}
+
+export interface DefaultBrowserInfo {
+  preferred: BrowserKind | null
+  system: BrowserKind | null
+  system_error: string | null
+  effective: BrowserKind | null
+  error: string | null
+}
+export const getBrowserDefault = () => getJson<DefaultBrowserInfo>('/api/browser-default')
+export async function saveBrowserDefault(browser: BrowserKind | null): Promise<void> {
+  await checkResponse(await fetch('/api/browser-default', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ browser }),
+  }))
+}
+export async function launchBrowserDefault(): Promise<{ kind: BrowserKind }> {
+  const response = await checkResponse(await fetch('/api/browser-default/launch', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+  }))
+  return response.json() as Promise<{ kind: BrowserKind }>
+}
+
+export const getBrowsers = () => getJson<BrowserInfo[]>('/api/browsers')
+export async function saveBrowser(kind: BrowserKind, launcher: BrowserLauncher | null): Promise<void> {
+  await checkResponse(await fetch(`/api/browsers/${kind}/settings`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ launcher }),
+  }))
+}
+export async function launchBrowser(kind: BrowserKind, url?: string): Promise<void> {
+  await checkResponse(await fetch(`/api/browsers/${kind}/launch`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: url || null }),
+  }))
+}
+
 async function checkResponse(response: Response): Promise<Response> {
   if (response.ok) return response
 

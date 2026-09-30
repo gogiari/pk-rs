@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import {
   ArrowClockwiseIcon, ArrowRightIcon, CaretDownIcon, CopyIcon,
   EyeIcon, EyeSlashIcon, FileTextIcon, GearSixIcon, GlobeIcon, InfoIcon,
@@ -7,6 +7,7 @@ import {
 import { getConfig, getLogs, getStatus, saveConfig, tunnelAction, type Settings, type Status } from './api'
 import { getLatestRelease, isNewerVersion, type LatestRelease } from './update'
 import rocketMark from './assets/rocket-mark.png'
+import Browsers from './Browsers'
 
 const defaultSettings: Settings = {
   ssh_target: '', ssh_password: '', ssh_key_path: '', http_port: 3128,
@@ -56,6 +57,10 @@ export default function App() {
   const [rememberPassword, setRememberPassword] = useState(false)
   const [configLoading, setConfigLoading] = useState(true)
   const [configError, setConfigError] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const settingsToggle = useRef<HTMLButtonElement>(null)
+  const connectionForm = useRef<HTMLFormElement>(null)
+  const lastAuthFailure = useRef<string | null>(null)
   const [status, setStatus] = useState<Status | null>(null)
   const [statusError, setStatusError] = useState(false)
   const [logs, setLogs] = useState<string[]>([])
@@ -112,8 +117,9 @@ export default function App() {
       setSettings({ ...config, ssh_password: config.ssh_password ?? '', ssh_key_path: config.ssh_key_path ?? '' })
       setAuthMethod(config.ssh_key_path?.trim() ? 'key' : 'password')
       setRememberPassword(Boolean(config.ssh_password?.trim()))
+      setSettingsOpen(!config.ssh_target.trim() || !(config.ssh_password?.trim() || config.ssh_key_path?.trim()))
       setConfigError(false)
-    }).catch(() => setConfigError(true)).finally(() => setConfigLoading(false))
+    }).catch(() => { setConfigError(true); setSettingsOpen(true) }).finally(() => setConfigLoading(false))
     void refreshStatus(); void refreshLogs()
     const statusTimer = window.setInterval(() => void refreshStatus(), 3000)
     const logsTimer = window.setInterval(() => void refreshLogs(), 4000)
@@ -139,6 +145,24 @@ export default function App() {
   const httpState: ServiceState = connectionState === 'loading' || connectionState === 'unavailable' ? 'unknown'
     : !status?.http_alive ? 'offline' : connected ? 'online' : 'waiting'
 
+  useEffect(() => {
+    if (configLoading || connected || busy || status === null || statusError) return
+    // Stop at the latest successful connection or daemon start so old failures
+    // from previous sessions cannot reopen settings on every log refresh.
+    for (const line of logs.slice().reverse()) {
+      if (/PK Proxy Manager 가동|SOCKS5 (?:연결이 완료|프록시 준비 완료)/.test(line)) break
+      const entry = parseLog(line)
+      if (entry.level === 'error' && /비밀번호|인증|permission denied|authentication failed|publickey|identity file/i.test(entry.message)) {
+        if (lastAuthFailure.current !== line) {
+          lastAuthFailure.current = line
+          setSettingsOpen(true)
+          setActionError(entry.message)
+        }
+        break
+      }
+    }
+  }, [logs, configLoading, connected, busy, status, statusError])
+
   function configPayload(): Settings {
     return {
       ...settings,
@@ -148,26 +172,57 @@ export default function App() {
     }
   }
 
+  function revealSettings(input?: HTMLInputElement | null) {
+    setSettingsOpen(true)
+    // Network inputs may also be inside the nested disclosure.
+    const details = input?.closest('details')
+    if (details) details.open = true
+    if (input) window.requestAnimationFrame(() => input.focus())
+  }
+
+  function collapseSettings(restoreFocus: boolean | undefined) {
+    setSettingsOpen(false)
+    setPasswordVisible(false)
+    if (restoreFocus) window.requestAnimationFrame(() => settingsToggle.current?.focus())
+  }
+
+  function validateConnection() {
+    const form = connectionForm.current
+    if (!form || form.checkValidity()) return true
+    revealSettings(form.querySelector<HTMLInputElement>('input:invalid'))
+    window.requestAnimationFrame(() => form.reportValidity())
+    return false
+  }
+
   async function saveOnly() {
     if (busy || configLoading) return
+    const restoreFocus = connectionForm.current?.contains(document.activeElement)
     setPending('save'); setActionError(null)
     try {
       await saveConfig(configPayload())
+      if (settings.ssh_target.trim() && (authMethod === 'key' ? settings.ssh_key_path?.trim() : settings.ssh_password?.trim())) collapseSettings(restoreFocus)
+      void refreshStatus()
       setToast({ message: connected ? '설정을 저장했습니다. 재연결하면 적용됩니다.' : '설정을 저장했습니다.', success: true })
-    } catch (error) { setActionError(errorMessage(error, '설정을 저장하지 못했습니다.')) }
+    } catch (error) { setActionError(errorMessage(error, '설정을 저장하지 못했습니다.')); revealSettings() }
     finally { setPending(null) }
   }
 
   async function connect(event?: FormEvent<HTMLFormElement>) {
     event?.preventDefault()
     if (busy || configLoading) return
+    if (!validateConnection()) return
+    const restoreFocus = connectionForm.current?.contains(document.activeElement)
     setPending('connect'); setActionError(null)
     try {
       await saveConfig(configPayload())
       const transientPassword = authMethod === 'password' && !rememberPassword ? settings.ssh_password?.trim() || undefined : undefined
       await tunnelAction('connect', transientPassword)
+      collapseSettings(restoreFocus)
       setToast({ message: connected ? '터널을 재연결했습니다.' : '프록시가 연결되었습니다.', success: true })
-    } catch (error) { setActionError(errorMessage(error, '연결하지 못했습니다. 설정과 로그를 확인하세요.')) }
+    } catch (error) {
+      setActionError(errorMessage(error, '연결하지 못했습니다. 설정과 로그를 확인하세요.'))
+      revealSettings(connectionForm.current?.querySelector<HTMLInputElement>(authMethod === 'key' ? '#ssh_key_path' : '#ssh_password'))
+    }
     finally { await Promise.all([refreshStatus(), refreshLogs()]); setPending(null) }
   }
 
@@ -204,7 +259,7 @@ export default function App() {
           </select>
           <CaretDownIcon size={13} className="theme-caret" aria-hidden="true" />
         </div>
-        <a href="#connection-settings" onClick={() => setActiveSection('connection')}><GearSixIcon size={18} weight="fill" aria-hidden="true" />설정</a>
+        <a href="#connection-settings" onClick={() => { setActiveSection('connection'); setSettingsOpen(true) }}><GearSixIcon size={18} weight="fill" aria-hidden="true" />설정</a>
         <a href="#connection-guide"><InfoIcon size={18} weight="fill" aria-hidden="true" />연결 안내</a>
       </nav>
     </header>
@@ -212,7 +267,7 @@ export default function App() {
     <nav className="sidebar" aria-label="주요 메뉴">
       <a href="#overview" className={activeSection === 'overview' ? 'active' : ''} aria-current={activeSection === 'overview' ? 'page' : undefined}
         onClick={() => setActiveSection('overview')}><InfoIcon size={20} aria-hidden="true" />개요</a>
-      <a href="#connection-settings" className={activeSection === 'connection' ? 'active' : ''} aria-current={activeSection === 'connection' ? 'page' : undefined}
+      <a href="#overview" className={activeSection === 'connection' ? 'active' : ''} aria-current={activeSection === 'connection' ? 'page' : undefined}
         onClick={() => setActiveSection('connection')}><TerminalWindowIcon size={20} aria-hidden="true" />연결</a>
       <a href="#recent-logs" className={activeSection === 'logs' ? 'active' : ''} aria-current={activeSection === 'logs' ? 'page' : undefined}
         onClick={() => { setActiveSection('logs'); setShowAllLogs(true) }}><FileTextIcon size={20} aria-hidden="true" />로그</a>
@@ -250,6 +305,7 @@ export default function App() {
               </>}
           </div>
         </div>
+        <p className="connection-target"><span>접속 대상</span><strong>{status?.ssh_target.trim() || (status === null ? '확인 중…' : '설정되지 않음')}</strong></p>
         <div className="service-list" aria-label="서비스 상태">
           <ServiceRow icon={<TerminalWindowIcon size={20} weight="bold" />} name="원격 SSH 터널" state={sshState}
             detail={connected ? 'SOCKS5 포트 ' + status?.socks_port : sshState === 'unknown' ? '연결 상태를 확인하지 못했습니다.' : '원격 서버에 SSH로 연결합니다.'} />
@@ -258,11 +314,20 @@ export default function App() {
         </div>
       </section>
 
+      <Browsers connected={connected} />
+
       <section className="settings-panel" id="connection-settings" aria-labelledby="settings-title">
-        <h2 id="settings-title" className="section-title">접속 설정</h2>
+        <h2 id="settings-title" className="section-title settings-heading">
+          <button type="button" ref={settingsToggle} className="settings-toggle" aria-expanded={settingsOpen} aria-controls="connection-settings-content"
+            disabled={configLoading} onClick={() => { setSettingsOpen((value) => !value); setPasswordVisible(false) }}>
+            <GearSixIcon size={19} weight="fill" aria-hidden="true" /><span>접속 설정 변경</span>
+            <CaretDownIcon size={18} className="summary-caret" aria-hidden="true" />
+          </button>
+        </h2>
         {configError && !statusError && <p className="inline-note error" role="alert">설정을 불러오지 못했습니다. 서비스가 실행 중인지 확인하세요.</p>}
         {actionError && <p className="inline-note error" role="alert">{actionError}</p>}
-        <form id="connection-form" onSubmit={(event) => void connect(event)}>
+        <div id="connection-settings-content" hidden={!settingsOpen}>
+        <form id="connection-form" ref={connectionForm} noValidate onSubmit={(event) => void connect(event)}>
           <div className="form-field"><label htmlFor="ssh_target">원격 접속 대상 <span>(SSH User@Host)</span></label>
             <input id="ssh_target" name="ssh_target" type="text" autoComplete="off" required placeholder="user@example-host"
               value={settings.ssh_target} onChange={(event) => updateSetting('ssh_target', event.target.value)} />
@@ -305,6 +370,7 @@ export default function App() {
           <div className="form-actions"><button type="button" className="button-primary" disabled={busy || configLoading} onClick={() => void saveOnly()}>
             {pending === 'save' ? '저장 중...' : '설정 저장'}</button></div>
         </form>
+        </div>
       </section>
     </div>
 

@@ -1,8 +1,11 @@
+mod browser;
+mod browser_default;
 mod cli;
 mod config;
 mod daemon;
 mod http_proxy;
 mod logger;
+mod safari;
 mod socks;
 mod tunnel;
 mod web;
@@ -55,6 +58,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subcmd = args.get(1).map(|s| s.as_str()).unwrap_or("ui");
 
     match subcmd {
+        "browser" => {
+            browser_cli(&args[2..]).await?;
+            return Ok(());
+        }
         "install" => {
             cli::install_symlinks()?;
             return Ok(());
@@ -339,6 +346,69 @@ fn open_browser(url: &str) {
     }
 }
 
+async fn browser_cli(args: &[String]) -> Result<(), String> {
+    let mut cfg = Config::load();
+    match args.first().map(String::as_str) {
+        None => {
+            let (kind, profile) = browser_default::launch(cfg, None).await?;
+            print_browser_launch(kind, profile);
+        }
+        Some(url) if args.len() == 1 && (url.starts_with("http://") || url.starts_with("https://") || url == "about:blank") => {
+            let (kind, profile) = browser_default::launch(cfg, Some(url.into())).await?;
+            print_browser_launch(kind, profile);
+        }
+        Some("list") if args.len() == 1 => {
+            let entries = tokio::task::spawn_blocking(move || {
+                let default = browser_default::info(&cfg);
+                println!("기본 프록시 브라우저: {} ({})", default.effective.map(|kind| kind.label()).unwrap_or("확인 불가"),
+                    if default.preferred.is_some() { "PK 웹 설정" } else { "OS 기본 브라우저" });
+                if let Some(error) = default.error { println!("  {error}"); }
+                browser::list(&cfg)
+            }).await.map_err(|e| e.to_string())?;
+            for entry in entries {
+                let source = if entry.saved.is_some() { "직접 지정" } else { "자동 검색" };
+                println!("{} ({source}): {}", entry.label, serde_json::to_string(&entry.saved.or(entry.detected)).unwrap());
+                if let Some(error) = entry.error { println!("  {error}"); }
+                if let Some(proxy) = entry.system_proxy { println!("  {}", proxy.message); }
+            }
+        }
+        Some("set") => {
+            let kind = browser::BrowserKind::parse(args.get(1).ok_or("브라우저 이름을 지정하세요.")?)?;
+            let launcher = match args.get(2).map(String::as_str) {
+                Some("--flatpak") if args.len() == 4 => browser::Launcher::Flatpak { app_id: args[3].clone() },
+                Some("--snap") if args.len() == 4 => browser::Launcher::Snap { name: args[3].clone() },
+                Some(path) if args.len() == 3 && !path.starts_with('-') => browser::Launcher::Executable { path: path.into() },
+                _ => return Err("사용법: pk browser set <브라우저> <실행 파일> 또는 --flatpak <앱 ID> / --snap <이름>".into()),
+            };
+            let launcher = browser::normalize_launcher(kind, launcher)?;
+            cfg.browsers.insert(kind, launcher);
+            cfg.save()?;
+            println!("{} 실행 위치를 저장했습니다.", kind.label());
+        }
+        Some("reset") if args.len() == 2 => {
+            let kind = browser::BrowserKind::parse(&args[1])?;
+            cfg.browsers.remove(&kind);
+            cfg.save()?;
+            println!("{} 자동 검색을 사용합니다.", kind.label());
+        }
+        Some("safari") if args.len() == 2 && args[1] == "--setup" => {
+            println!("{}", safari::setup_help(&cfg));
+        }
+        Some(value) if args.len() <= 2 => {
+            let kind = browser::BrowserKind::parse(value)?;
+            let profile = browser::launch(&cfg, kind, args.get(1).cloned()).await?;
+            print_browser_launch(kind, profile);
+        }
+        _ => return Err("사용법: pk browser [URL] / list / <chrome|edge|firefox|safari> [URL] / set / reset".into()),
+    }
+    Ok(())
+}
+
+fn print_browser_launch(kind: browser::BrowserKind, profile: Option<std::path::PathBuf>) {
+    if let Some(profile) = profile { println!("{} 프록시 브라우저를 실행했습니다. 프로필: {}", kind.label(), profile.display()); }
+    else { println!("Safari를 PK 시스템 프록시 설정으로 실행했습니다. 기존 Safari 프로필을 사용합니다."); }
+}
+
 fn print_help() {
     println!(
         r#"PK Proxy Manager (Rust Native)
@@ -354,6 +424,14 @@ fn print_help() {
   pk logs            최근 프록시 로그 확인 (~/.config/pk/pk.log)
   pk install         사용자 명령 경로에 CLI 명령 등록
   pk uninstall       설치된 심볼릭 링크(바로가기) 깔끔하게 삭제
+  pk browser [URL]   기본 프록시 브라우저 실행 (PK 웹 설정 또는 OS 기본값)
+  pk browser list    브라우저 실행 위치 확인
+  pk browser <chrome|edge|firefox|safari> [URL]  프록시 브라우저 실행
+  pk browser safari --setup             macOS 시스템 프록시 설정 안내
+  pk browser set <브라우저> <실행 파일>   직접 지정한 실행 위치 저장
+  pk browser set <브라우저> --flatpak <앱 ID>  Linux Flatpak 지정
+  pk browser set <브라우저> --snap <이름>      Linux Snap 지정
+  pk browser reset <브라우저>            자동 검색으로 복원
   pk codex [args...] 프록시 환경변수가 적용된 codex 실행
   pk grok [args...]  프록시 환경변수가 적용된 grok 실행
   pk claude [args...]프록시 환경변수가 적용된 claude 실행

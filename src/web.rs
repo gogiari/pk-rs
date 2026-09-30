@@ -1,9 +1,10 @@
 use crate::config::Config;
+use crate::browser::{self, BrowserKind, Launcher};
 use crate::tunnel::TunnelManager;
 use axum::{
     body::Body,
     extract::{Path, State},
-    http::{header, StatusCode},
+    http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
     routing::{get, post},
     Router,
@@ -53,12 +54,26 @@ struct ConnectRequest {
     password: Option<String>,
 }
 
+#[derive(Deserialize)]
+struct BrowserSettingsRequest { launcher: Option<Launcher> }
+
+#[derive(Deserialize)]
+struct BrowserLaunchRequest { url: Option<String> }
+
+#[derive(Deserialize)]
+struct DefaultBrowserRequest { browser: Option<BrowserKind> }
+
 pub async fn run_web_server(state: AppState, port: u16) -> Result<(), String> {
     let app = Router::new()
         .route("/", get(index_handler))
         .route("/assets/*path", get(asset_handler))
         .route("/api/status", get(get_status))
         .route("/api/logs", get(get_logs))
+        .route("/api/browsers", get(get_browsers))
+        .route("/api/browser-default", get(get_browser_default).post(save_browser_default))
+        .route("/api/browser-default/launch", post(launch_browser_default))
+        .route("/api/browsers/:kind/settings", post(save_browser_settings))
+        .route("/api/browsers/:kind/launch", post(launch_browser))
         .route("/api/config", get(get_config).post(update_config))
         .route("/api/tunnel/connect", post(connect_tunnel))
         .route("/api/tunnel/disconnect", post(disconnect_tunnel))
@@ -199,6 +214,10 @@ async fn update_config(
     if let Some(ab) = payload.auto_open_browser {
         cfg.auto_open_browser = ab;
     }
+    // Browser settings may also have been changed by `pk browser set`.
+    let browser_settings = Config::load();
+    cfg.browsers = browser_settings.browsers;
+    cfg.default_browser = browser_settings.default_browser;
 
     if let Err(e) = cfg.save() {
         return Err((
@@ -211,6 +230,107 @@ async fn update_config(
         "status": "success",
         "message": "설정이 성공적으로 저장되었습니다."
     })))
+}
+
+type BrowserApiError = (StatusCode, String);
+
+fn check_browser_origin(headers: &HeaderMap, web_port: u16) -> Result<(), BrowserApiError> {
+    // These endpoints can start local programs. Reject requests from other sites.
+    let allowed = |value: &str| {
+        value == format!("http://127.0.0.1:{web_port}") || value == format!("http://localhost:{web_port}")
+            || (cfg!(debug_assertions) && matches!(value, "http://127.0.0.1:5173" | "http://localhost:5173"))
+    };
+    let host = headers.get(header::HOST).and_then(|v| v.to_str().ok()).unwrap_or("");
+    if !allowed(&format!("http://{host}")) || headers.get("sec-fetch-site").and_then(|v| v.to_str().ok()) == Some("cross-site") {
+        return Err((StatusCode::FORBIDDEN, "PK 로컬 대시보드에서 실행하세요.".into()));
+    }
+    if let Some(origin) = headers.get(header::ORIGIN) {
+        if !origin.to_str().map(allowed).unwrap_or(false) {
+            return Err((StatusCode::FORBIDDEN, "다른 사이트에서 브라우저를 실행할 수 없습니다.".into()));
+        }
+    }
+    Ok(())
+}
+
+async fn get_browsers(State(state): State<AppState>) -> Result<Json<Vec<browser::BrowserInfo>>, BrowserApiError> {
+    let mut cfg = state.config.lock().await.clone();
+    let entries = tokio::task::spawn_blocking(move || {
+        cfg.browsers = Config::load().browsers;
+        browser::list(&cfg)
+    }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(entries))
+}
+
+async fn save_browser_settings(
+    State(state): State<AppState>, Path(kind): Path<String>, headers: HeaderMap,
+    Json(payload): Json<BrowserSettingsRequest>,
+) -> Result<Json<serde_json::Value>, BrowserApiError> {
+    check_browser_origin(&headers, state.config.lock().await.web_port)?;
+    let kind = BrowserKind::parse(&kind).map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    let launcher = tokio::task::spawn_blocking(move || payload.launcher.map(|launcher| browser::normalize_launcher(kind, launcher)).transpose())
+        .await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    let mut cfg = state.config.lock().await;
+    let mut updated = cfg.clone();
+    let browser_settings = Config::load();
+    updated.browsers = browser_settings.browsers;
+    updated.default_browser = browser_settings.default_browser;
+    if let Some(launcher) = launcher { updated.browsers.insert(kind, launcher); }
+    else { updated.browsers.remove(&kind); }
+    updated.save().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    *cfg = updated;
+    Ok(Json(serde_json::json!({"status": "success"})))
+}
+
+async fn launch_browser(
+    State(state): State<AppState>, Path(kind): Path<String>, headers: HeaderMap,
+    Json(payload): Json<BrowserLaunchRequest>,
+) -> Result<Json<serde_json::Value>, BrowserApiError> {
+    let mut cfg = state.config.lock().await.clone();
+    check_browser_origin(&headers, cfg.web_port)?;
+    let kind = BrowserKind::parse(&kind).map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    cfg.browsers = Config::load().browsers;
+    let profile = browser::launch(&cfg, kind, payload.url).await.map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    Ok(Json(serde_json::json!({"status": "success", "profile": profile})))
+}
+
+async fn get_browser_default(State(state): State<AppState>) -> Result<Json<crate::browser_default::DefaultBrowserInfo>, BrowserApiError> {
+    let mut cfg = state.config.lock().await.clone();
+    let info = tokio::task::spawn_blocking(move || {
+        cfg.default_browser = Config::load().default_browser;
+        crate::browser_default::info(&cfg)
+    }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(info))
+}
+
+async fn save_browser_default(
+    State(state): State<AppState>, headers: HeaderMap,
+    Json(payload): Json<DefaultBrowserRequest>,
+) -> Result<Json<serde_json::Value>, BrowserApiError> {
+    check_browser_origin(&headers, state.config.lock().await.web_port)?;
+    if payload.browser.is_some_and(|kind| !kind.supported()) {
+        return Err((StatusCode::BAD_REQUEST, "Safari는 macOS에서만 선택할 수 있습니다.".into()));
+    }
+    let mut cfg = state.config.lock().await;
+    let mut updated = cfg.clone();
+    updated.browsers = Config::load().browsers;
+    updated.default_browser = payload.browser;
+    updated.save().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    *cfg = updated;
+    Ok(Json(serde_json::json!({"status": "success"})))
+}
+
+async fn launch_browser_default(
+    State(state): State<AppState>, headers: HeaderMap,
+    Json(payload): Json<BrowserLaunchRequest>,
+) -> Result<Json<serde_json::Value>, BrowserApiError> {
+    let mut cfg = state.config.lock().await.clone();
+    check_browser_origin(&headers, cfg.web_port)?;
+    let browser_settings = Config::load();
+    cfg.browsers = browser_settings.browsers;
+    cfg.default_browser = browser_settings.default_browser;
+    let (kind, profile) = crate::browser_default::launch(cfg, payload.url).await.map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    Ok(Json(serde_json::json!({"status": "success", "kind": kind, "profile": profile})))
 }
 
 async fn connect_tunnel(
@@ -265,7 +385,20 @@ async fn restart_tunnel(
 
 #[cfg(test)]
 mod tests {
-    use super::{web_listen_addr, WebAssets};
+    use super::{check_browser_origin, web_listen_addr, WebAssets};
+
+    #[test]
+    fn browser_launch_rejects_foreign_origins_and_dns_rebinding() {
+        let mut headers = axum::http::HeaderMap::new();
+        headers.insert("host", "127.0.0.1:8253".parse().unwrap());
+        assert!(check_browser_origin(&headers, 8253).is_ok());
+        headers.insert("origin", "https://example.com".parse().unwrap());
+        assert!(check_browser_origin(&headers, 8253).is_err());
+        headers.insert("origin", "http://127.0.0.1:8253".parse().unwrap());
+        assert!(check_browser_origin(&headers, 8253).is_ok());
+        headers.insert("host", "example.com:8253".parse().unwrap());
+        assert!(check_browser_origin(&headers, 8253).is_err());
+    }
 
     #[test]
     fn web_ui_only_binds_to_loopback() {

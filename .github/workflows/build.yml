@@ -30,6 +30,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/smoke-dashboard.py target/release/pk.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/smoke-browsers.py target/release/pk.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Stage npm executable
         shell: pwsh
         run: |
@@ -72,6 +74,7 @@ jobs:
           bash verify-linux.sh
           cargo test --bin pk
           python3 scripts/smoke-dashboard.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
+          python3 scripts/smoke-browsers.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
           python3 scripts/smoke-stop-ssh.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
       - name: Stage npm executable
         run: |
@@ -104,6 +107,7 @@ jobs:
           sudo installer -pkg "$pkg" -target /
           test -x '/Applications/PK Proxy Manager.app/Contents/MacOS/pk'
           python3 scripts/smoke-dashboard.py /usr/local/bin/pk
+          python3 scripts/smoke-browsers.py /usr/local/bin/pk
           python3 scripts/smoke-stop-ssh.py /usr/local/bin/pk
           bash '/Applications/Uninstall PK Proxy Manager.command'
           test ! -e /usr/local/bin/pk

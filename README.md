@@ -92,6 +92,55 @@ agy-proxy
 ocx-proxy
 ```
 
+### 4. 프록시 전용 브라우저 실행
+
+로컬 빌드로 먼저 확인하려면 PowerShell에서 `./scripts/preview-browsers.ps1`을 실행하세요. `target/browser-preview`에 별도 설정을 만들고 웹 포트 `18253`, HTTP 포트 `13128`, SOCKS5 포트 `11080`을 사용합니다. 기존 설치본과 분리해 확인할 수 있습니다. `-Foreground`를 붙이면 터미널에서 실행하며 Ctrl+C로 종료합니다. 백그라운드 미리보기를 중지하려면 `$env:PK_CONFIG_DIR = "$PWD/target/browser-preview"` 설정 후 `./target/release/pk.exe stop`을 실행합니다.
+
+대시보드의 **프록시 브라우저**에서 Chrome, Edge, Firefox를 실행할 수 있습니다. 먼저 SSH 터널을 연결하세요. 실행 전 SOCKS5 응답을 확인하며, 설정된 SOCKS 포트를 사용합니다. 브라우저별 PK 전용 프로필에 로그인과 쿠키가 유지됩니다. 실행 위치나 프록시 설정을 변경했다면 기존 PK 브라우저 창을 모두 닫고 다시 실행하세요.
+
+`pk browser`는 OS 기본 브라우저를 PK 프록시 설정으로 실행합니다. 대시보드의 **기본 프록시 브라우저**를 선택하고 저장하면 웹의 **기본 브라우저 실행**과 CLI에 함께 적용됩니다. **OS 기본 브라우저**로 저장하면 다시 OS 설정을 따릅니다. 선택은 PK 설정에만 저장하며 OS 기본값은 변경하지 않습니다. `pk browser chrome`처럼 이름을 지정하면 저장된 기본 선택보다 우선합니다. OS 기본 브라우저가 지원 목록에 없거나 조회되지 않으면 웹에서 지원하는 브라우저를 선택하라는 오류를 표시합니다.
+
+로컬 미리보기 웹에서 저장한 선택을 CLI로 확인할 때는 설치된 `pk` 대신 로컬 빌드와 같은 미리보기 설정 폴더를 사용하세요. 프로젝트 폴더의 별도 PowerShell 터미널에서 다음과 같이 실행합니다.
+
+```powershell
+$env:PK_CONFIG_DIR = "$PWD/target/browser-preview"
+./target/release/pk.exe browser
+```
+
+Windows는 사용자별 HTTP/HTTPS 연결 앱과 실제 실행 파일 경로를 조회하고, macOS는 Launch Services의 기본 앱과 위치를 조회합니다. Linux는 `xdg-mime`, `xdg-settings`로 표준 Chrome/Chromium·Edge·Firefox desktop ID를 조회하며 Flatpak·Snap도 구분합니다. 별도 이름의 사용자 정의 desktop 항목은 PK 웹에서 브라우저와 실행 위치를 지정하세요.
+
+```bash
+pk browser                            # PK 웹 선택 또는 OS 기본 브라우저
+pk browser https://example.com        # 기본 브라우저로 URL 열기
+pk browser list
+pk browser edge
+pk browser chrome https://example.com
+pk browser firefox
+pk browser safari https://example.com   # macOS
+```
+
+**Safari (macOS)**는 macOS 네트워크 프록시 설정을 사용하며 기존 Safari 프로필로 실행합니다. 대시보드에서 현재 설정과 설정 방법을 확인하거나 `pk browser safari --setup`으로 안내를 확인하세요. 시스템 설정의 사용 중인 네트워크 연결에서 HTTP·HTTPS를 모두 `127.0.0.1:<PK HTTP 포트>`로 지정하거나 SOCKS를 `127.0.0.1:<PK SOCKS 포트>`로 지정한 뒤 **다시 검색**을 누릅니다. PAC·자동 검색, 다른 프록시, 확인할 수 없는 기본·인터페이스별 설정이 있으면 실행을 막고 이유를 안내합니다. 실행 직전 시스템 프록시를 다시 확인하고 SOCKS5 응답을 검사합니다. HTTP·HTTPS 방식이면 로컬 HTTP 포트도 확인합니다.
+
+Safari의 시스템 프록시는 해당 설정을 따르는 다른 앱에도 영향을 줍니다. PK가 시스템 설정을 자동으로 변경하거나 복원하지 않으므로, PK 프록시를 종료한 뒤에는 직접 원래 설정으로 되돌리세요. Safari는 macOS의 프록시 제외 목록을 사용하며 PK의 `NO_PROXY`를 자동으로 복사하지 않습니다. [Apple의 Safari 프록시 설정 안내](https://support.apple.com/ko-kr/guide/safari/ibrw1053/mac)를 참고하세요. Windows·Linux에서는 Safari 실행 항목이 비활성화됩니다.
+
+Windows는 레지스트리 App Paths와 사용자·시스템 설치 폴더, macOS는 `/Applications`와 `~/Applications`, Linux는 PATH와 Flatpak·Snap에서 검색합니다. Chrome 항목은 Linux의 Chromium도 검색합니다. 기본 경로 밖에 설치했다면 대시보드의 **실행 위치 설정**에서 절대 경로 또는 PATH에 있는 명령 이름을 저장하세요. 실행 파일 경로와 실행 옵션은 분리하며 임의의 셸 명령은 입력하지 않습니다. macOS의 수동 경로는 `.app` 폴더 내부 `Contents/MacOS` 실행 파일을 지정합니다.
+
+```powershell
+pk browser set edge "D:\Apps\Edge\msedge.exe"
+pk browser reset edge
+```
+
+Linux 샌드박스 패키지는 실행 방식과 앱 이름을 따로 지정할 수 있습니다.
+
+```bash
+pk browser set firefox --flatpak org.mozilla.firefox
+pk browser set firefox --snap firefox
+```
+
+일반 설치의 전용 프로필은 PK 설정 폴더 아래 `browser-profiles/<브라우저>`에 저장됩니다. Flatpak·Snap은 해당 앱의 사용자 데이터 폴더에 저장합니다. 실행 위치 설정은 CLI와 대시보드가 공유하며, CLI에서 변경한 뒤에는 대시보드의 **다시 검색**을 누르세요.
+
+프록시 제외 대상에는 루프백과 현재 `NO_PROXY` 설정을 적용합니다. 도메인, `*.도메인`, IP, CIDR을 사용할 수 있으며, 브라우저에서 지원하지 않는 형태는 실행 시 오류로 안내합니다. 전체 제외를 뜻하는 `*`는 지원하지 않습니다. 원격 DNS 설정은 일반 웹 요청을 위한 것으로, 브라우저의 모든 통신을 강제로 터널링하는 기능은 아닙니다.
+
 ## 다운로드 및 업데이트
 
 CLI 사용자는 `npm install -g @gomul82/pk`로 설치하고, 업데이트할 때는 `pk stop` 후 `npm install -g @gomul82/pk@latest`를 실행하세요. [GitHub Releases](https://github.com/gogiari/pk-rs/releases/latest)에는 OS별 설치 파일과 `SHA256SUMS`가 계속 제공됩니다. 대시보드는 실행할 때 새 버전을 확인하고 npm 설치에는 업데이트 명령을, OS별 설치에는 Release 페이지를 안내합니다.

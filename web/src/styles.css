@@ -56,7 +56,7 @@
 
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; min-width: 320px; background: var(--outer); }
+body { margin: 0; min-width: 0; background: var(--outer); }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { opacity: .55; cursor: not-allowed; }
@@ -179,6 +179,9 @@ a, button, input, summary { -webkit-tap-highlight-color: transparent; }
 .status-dot.disconnected { background: var(--danger); }
 .status-line p { margin: 0; color: var(--soft); font-size: 13px; line-height: 1.45; flex: 1; min-width: 0; }
 .status-actions { display: flex; align-items: center; gap: 7px; flex: 0 0 auto; }
+.connection-target { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; margin: 15px 4px; font-size: 13px; }
+.connection-target span { color: var(--muted); }
+.connection-target strong { color: var(--soft); font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
 .text-action { display: inline-flex; align-items: center; gap: 7px; color: var(--accent); font-size: 13px; font-weight: 620; border: 0; background: transparent; padding: 7px 4px; white-space: nowrap; }
 .text-action:hover { color: var(--accent-strong); text-decoration: underline; }
 .service-list { width: 100%; }
@@ -208,6 +211,14 @@ a, button, input, summary { -webkit-tap-highlight-color: transparent; }
   border-bottom: 1px solid var(--line);
 }
 .settings-panel { margin-top: 29px; scroll-margin-top: 14px; }
+.settings-heading { margin-bottom: 0; padding-bottom: 0; }
+.settings-toggle { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 53px; padding: 10px 0; border: 0; background: transparent; color: var(--text); font: inherit; text-align: left; }
+.settings-toggle > svg:first-child { color: var(--accent-strong); flex: 0 0 auto; }
+.settings-toggle span { flex: 1; }
+.settings-toggle:hover:not(:disabled) { color: var(--accent); }
+.settings-toggle[aria-expanded="true"] .summary-caret { transform: rotate(180deg); }
+#connection-settings-content { padding-top: 20px; }
+.settings-panel > .inline-note { margin-top: 15px; }
 .form-field { margin-bottom: 21px; }
 .form-field label, .auth-methods legend { display: block; color: var(--text); font-size: 13px; font-weight: 640; margin: 0 0 8px; }
 .form-field label span { color: var(--soft); font-weight: 500; }
@@ -425,3 +436,23 @@ a, button, input, summary { -webkit-tap-highlight-color: transparent; }
   html { scroll-behavior: auto; }
   .summary-caret { transition: none; }
 }
+
+.browser-panel { margin-block: 25px; padding-block: 20px; border-block: 1px solid var(--line); }
+.browser-heading, .browser-row-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.browser-heading .section-title { display: flex; align-items: center; gap: 9px; margin: 0; }
+.browser-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.browser-row { padding: 14px; background: var(--field); border: 1px solid var(--field-line); border-radius: 6px; min-width: 0; }
+.browser-row-heading strong { font-size: 14px; }
+.browser-location { color: var(--muted); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.browser-cli-command { display: block; color: var(--accent); font-size: 12px; margin-block: 10px; }
+.browser-system-proxy a { color: var(--accent); font-size: 12px; }
+.safari-row { grid-column: 1 / -1; }
+.browser-custom summary { cursor: pointer; color: var(--accent); font-size: 12px; padding-block: 6px; }
+.browser-custom .form-field { margin-top: 12px; }
+.browser-custom select { width: 100%; min-height: 38px; color: var(--text); background: var(--field); border: 1px solid var(--field-line); border-radius: 6px; padding: 6px; font: inherit; font-size: 13px; }
+.browser-row .inline-note { margin-top: 12px; margin-bottom: 0; overflow-wrap: anywhere; }
+@media (max-width: 1500px) { .browser-grid { grid-template-columns: 1fr; } }
+.browser-default { padding: 1rem; margin-block: 1rem; border: 1px solid var(--line); border-radius: 8px; }
+.browser-default select { width: 100%; min-height: 38px; color: var(--text); background: var(--field); border: 1px solid var(--field-line); border-radius: 6px; padding: 6px; font: inherit; font-size: 13px; }
+.browser-default .inline-note { overflow-wrap: anywhere; }
+.browser-default-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-block: .75rem; }
