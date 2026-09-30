@@ -1,4 +1,4 @@
-name: Build and verify
+name: Build and publish npm
 
 on:
   push:
@@ -20,7 +20,7 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Build installer
+      - name: Build npm executable
         shell: pwsh
         run: ./build.ps1
       - name: Test Rust code and dashboard
@@ -35,7 +35,8 @@ jobs:
       - name: Stage npm executable
         shell: pwsh
         run: |
-          Copy-Item target/release/pk.exe target/release/npm-pk-windows-x64.exe
+          New-Item -ItemType Directory -Force target/npm-assets | Out-Null
+          Copy-Item target/release/pk.exe target/npm-assets/npm-pk-windows-x64.exe
           New-Item -ItemType Directory -Force npm/binaries/win32-x64 | Out-Null
           Copy-Item target/release/pk.exe npm/binaries/win32-x64/pk.exe
           node npm/bin/pk.cjs status
@@ -43,9 +44,7 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: pk-windows-x64
-          path: |
-            target/release/pk-installer.exe
-            target/release/npm-pk-windows-x64.exe
+          path: target/npm-assets/npm-pk-windows-x64.exe
           if-no-files-found: error
 
   linux:
@@ -57,35 +56,25 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - uses: actions/setup-go@v7
-        with:
-          go-version: '1.26.x'
-          cache: false
-      - name: Install Linux packaging tools
+      - name: Install Linux build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y musl-tools
-          go install github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.47.0
-          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
-      - name: Build packages
+      - name: Build npm executable
         run: bash build-linux.sh
-      - name: Verify packages and dashboard
+      - name: Test Rust code and dashboard
         run: |
-          bash verify-linux.sh
           cargo test --bin pk
-          python3 scripts/smoke-dashboard.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
-          python3 scripts/smoke-browsers.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
-          python3 scripts/smoke-stop-ssh.py "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk"
-      - name: Stage npm executable
+          python3 scripts/smoke-dashboard.py npm/binaries/linux-x64/pk
+          python3 scripts/smoke-browsers.py npm/binaries/linux-x64/pk
+          python3 scripts/smoke-stop-ssh.py npm/binaries/linux-x64/pk
+      - name: Test npm executable
         run: |
-          install -m 755 "$HOME/.cache/pk-rs/cargo-target/x86_64-unknown-linux-musl/release/pk" target/linux-dist/npm-pk-linux-x64
-          mkdir -p npm/binaries/linux-x64
-          install -m 755 target/linux-dist/npm-pk-linux-x64 npm/binaries/linux-x64/pk
           node npm/bin/pk.cjs status
       - uses: actions/upload-artifact@v7
         with:
           name: pk-linux-x64
-          path: target/linux-dist/*
+          path: target/npm-assets/npm-pk-linux-x64
           if-no-files-found: error
 
   macos:
@@ -97,32 +86,21 @@ jobs:
           node-version: '22'
           cache: npm
           cache-dependency-path: web/package-lock.json
-      - name: Build universal installer
+      - name: Build universal npm executable
         run: bash build-macos.sh
-      - name: Test macOS package, dashboard, and removal
+      - name: Test Rust code and dashboard
         run: |
           cargo test --bin pk
-          pkg=$(find target/macos-dist -maxdepth 1 -name '*.pkg' -print -quit)
-          test -n "$pkg"
-          sudo installer -pkg "$pkg" -target /
-          test -x '/Applications/PK Proxy Manager.app/Contents/MacOS/pk'
-          python3 scripts/smoke-dashboard.py /usr/local/bin/pk
-          python3 scripts/smoke-browsers.py /usr/local/bin/pk
-          python3 scripts/smoke-stop-ssh.py /usr/local/bin/pk
-          bash '/Applications/Uninstall PK Proxy Manager.command'
-          test ! -e /usr/local/bin/pk
-          test ! -e '/Applications/PK Proxy Manager.app'
+          python3 scripts/smoke-dashboard.py npm/binaries/darwin-universal/pk
+          python3 scripts/smoke-browsers.py npm/binaries/darwin-universal/pk
+          python3 scripts/smoke-stop-ssh.py npm/binaries/darwin-universal/pk
       - name: Test npm executable
         run: |
-          mkdir -p npm/binaries/darwin-universal
-          install -m 755 target/macos-dist/npm-pk-macos-universal npm/binaries/darwin-universal/pk
           node npm/bin/pk.cjs status
       - uses: actions/upload-artifact@v7
         with:
           name: pk-macos-universal
-          path: |
-            target/macos-dist/*.pkg
-            target/macos-dist/npm-pk-macos-universal
+          path: target/npm-assets/npm-pk-macos-universal
           if-no-files-found: error
 
   npm-package:
@@ -134,6 +112,31 @@ jobs:
         with:
           node-version: '24'
           package-manager-cache: false
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import tomllib
+
+          with open('Cargo.toml', 'rb') as source:
+              version = tomllib.load(source)['package']['version']
+          with open('web/package.json', encoding='utf-8') as source:
+              web_version = json.load(source)['version']
+          with open('web/package-lock.json', encoding='utf-8') as source:
+              lock_version = json.load(source)['version']
+          with open('npm/package.json', encoding='utf-8') as source:
+              npm_version = json.load(source)['version']
+          tag = os.environ['RELEASE_TAG']
+          if tag != f'v{version}' or web_version != version or lock_version != version or npm_version != version:
+              raise SystemExit(
+                  f'Version mismatch: tag={tag}, Cargo={version}, '
+                  f'web={web_version}, lock={lock_version}, npm={npm_version}'
+              )
+          PY
       - uses: actions/download-artifact@v8
         with:
           pattern: pk-*
@@ -170,73 +173,13 @@ jobs:
           npm pack ./npm --ignore-scripts --pack-destination npm-dist
       - uses: actions/upload-artifact@v7
         with:
-          name: pk-npm-package
-          path: |
-            npm-assets/npm-pk-windows-x64.exe
-            npm-assets/npm-pk-linux-x64
-            npm-assets/npm-pk-macos-universal
-          if-no-files-found: error
-      - uses: actions/upload-artifact@v7
-        with:
           name: pk-npm-tarball
           path: npm-dist/*.tgz
           if-no-files-found: error
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, linux, macos, npm-package]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v7
-      - name: Check release version
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          python3 - <<'PY'
-          import json
-          import os
-          import tomllib
-
-          with open('Cargo.toml', 'rb') as source:
-              version = tomllib.load(source)['package']['version']
-          with open('web/package.json', encoding='utf-8') as source:
-              web_version = json.load(source)['version']
-          with open('web/package-lock.json', encoding='utf-8') as source:
-              lock_version = json.load(source)['version']
-          with open('npm/package.json', encoding='utf-8') as source:
-              npm_version = json.load(source)['version']
-          tag = os.environ['RELEASE_TAG']
-          if tag != f'v{version}' or web_version != version or lock_version != version or npm_version != version:
-              raise SystemExit(
-                  f'Version mismatch: tag={tag}, Cargo={version}, '
-                  f'web={web_version}, lock={lock_version}, npm={npm_version}'
-              )
-          PY
-      - uses: actions/download-artifact@v8
-        with:
-          pattern: pk-*
-          path: release-assets
-          merge-multiple: true
-      - name: Publish GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-          test -f release-assets/pk-installer.exe
-          test -n "$(find release-assets -maxdepth 1 -name '*.pkg' -print -quit)"
-          test -n "$(find release-assets -maxdepth 1 -name '*.deb' -print -quit)"
-          mv release-assets/pk-installer.exe "release-assets/pk-proxy-manager_${RELEASE_TAG#v}_windows-x64-setup.exe"
-          (cd release-assets && sha256sum ./* > SHA256SUMS)
-          gh release create "$RELEASE_TAG" release-assets/* \
-            --verify-tag --generate-notes \
-            --notes 'npm 설치: npm install -g @gomul82/pk. 실행: pk ui. 기존 pk-proxy-manager 사용자는 pk stop 후 npm uninstall -g pk-proxy-manager를 실행하고 새 패키지를 설치하세요. OS별 설치 파일도 제공합니다. 개인 설정은 유지됩니다. macOS 패키지는 아직 서명·공증되지 않았습니다.'
-
   npm-publish:
     if: startsWith(github.ref, 'refs/tags/v') && vars.NPM_TRUSTED_PUBLISHER_ENABLED == 'true'
-    needs: release
+    needs: npm-package
     runs-on: ubuntu-latest
     permissions:
       contents: read

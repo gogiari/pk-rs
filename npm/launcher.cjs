@@ -13,7 +13,7 @@ function binaryPath(platform = process.platform, arch = process.arch) {
   } else if (platform === 'linux' && arch === 'x64') {
     target = ['linux-x64', 'pk'];
   } else {
-    throw new Error(`Unsupported platform: ${platform}-${arch}. See https://github.com/gogiari/pk-rs/releases/latest`);
+    throw new Error(`Unsupported platform: ${platform}-${arch}. Supported: Windows x64, Linux x64, macOS x64/arm64. See https://www.npmjs.com/package/@gomul82/pk`);
   }
   return path.join(__dirname, 'binaries', ...target);
 }
@@ -33,7 +33,7 @@ function run(command) {
   try {
     const executable = binaryPath();
     if (!fs.existsSync(executable)) {
-      throw new Error(`Missing ${executable}. Reinstall @gomul82/pk or download the native installer from GitHub Releases.`);
+      throw new Error(`Missing ${executable}. Reinstall with npm install -g @gomul82/pk@latest.`);
     }
     const result = spawnSync(executable, commandArgs(command, args), {
       stdio: 'inherit',

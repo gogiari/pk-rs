@@ -6,7 +6,7 @@
     "type": "git",
     "url": "git+https://github.com/gogiari/pk-rs.git"
   },
-  "homepage": "https://github.com/gogiari/pk-rs#readme",
+  "homepage": "https://www.npmjs.com/package/@gomul82/pk",
   "bugs": "https://github.com/gogiari/pk-rs/issues",
   "license": "UNLICENSED",
   "engines": {

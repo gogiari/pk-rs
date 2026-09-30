@@ -76,16 +76,14 @@ try {
     Write-Host 'Building Rust release binary...'
     & $cargo.Source build --release --bin pk
     if ($LASTEXITCODE -ne 0) { throw "Rust build failed with exit code $LASTEXITCODE" }
-    if ($env:OS -eq 'Windows_NT') {
-        Write-Host 'Building Windows installer...'
-        & $cargo.Source build --release --bin pk-installer
-        if ($LASTEXITCODE -ne 0) { throw "Installer build failed with exit code $LASTEXITCODE" }
-    }
 } finally {
     Pop-Location
 }
 
 Write-Host "Build complete: $(Join-Path $projectRoot 'target/release/pk.exe')"
 if ($env:OS -eq 'Windows_NT') {
-    Write-Host "Installer: $(Join-Path $projectRoot 'target/release/pk-installer.exe')"
+    $npmBinaryDir = Join-Path $projectRoot 'npm/binaries/win32-x64'
+    New-Item -ItemType Directory -Force -Path $npmBinaryDir | Out-Null
+    Copy-Item -LiteralPath (Join-Path $projectRoot 'target/release/pk.exe') -Destination (Join-Path $npmBinaryDir 'pk.exe')
+    Write-Host "npm executable: $(Join-Path $npmBinaryDir 'pk.exe')"
 }

@@ -1,5 +1,5 @@
-const releasesApi = 'https://api.github.com/repos/gogiari/pk-rs/releases/latest'
-const releasesPage = 'https://github.com/gogiari/pk-rs/releases'
+const packageApi = 'https://registry.npmjs.org/@gomul82%2fpk/latest'
+const packagePage = 'https://www.npmjs.com/package/@gomul82/pk'
 
 export interface LatestRelease {
   version: string
@@ -22,15 +22,15 @@ export function isNewerVersion(latest: string, installed: string): boolean {
 }
 
 export async function getLatestRelease(): Promise<LatestRelease> {
-  const response = await fetch(releasesApi, {
-    headers: { Accept: 'application/vnd.github+json' },
+  const response = await fetch(packageApi, {
+    headers: { Accept: 'application/json' },
     signal: AbortSignal.timeout(8000),
   })
-  if (!response.ok) throw new Error(`GitHub Releases 요청 실패 (${response.status})`)
+  if (!response.ok) throw new Error(`npm 버전 요청 실패 (${response.status})`)
   const data: unknown = await response.json()
-  if (!data || typeof data !== 'object' || !('tag_name' in data) || typeof data.tag_name !== 'string' ||
-      !versionParts(data.tag_name)) {
-    throw new Error('릴리스 버전을 확인할 수 없습니다.')
+  if (!data || typeof data !== 'object' || !('version' in data) || typeof data.version !== 'string' ||
+      !versionParts(data.version)) {
+    throw new Error('npm 패키지 버전을 확인할 수 없습니다.')
   }
-  return { version: data.tag_name.replace(/^v/, ''), url: releasesPage + '/tag/' + encodeURIComponent(data.tag_name) }
+  return { version: data.version, url: packagePage }
 }

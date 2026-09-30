@@ -1,8 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=PK Proxy Manager
-Comment=Local SSH tunnel and HTTP proxy dashboard
-Exec=pk ui
-Icon=pk
-Terminal=false
-Categories=Network;Utility;

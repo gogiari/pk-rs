@@ -19,6 +19,6 @@ Safari is supported on macOS using the existing Safari profile and macOS network
 
 Stop the service with `pk stop` before updating or removing the package. Then run either `npm install -g @gomul82/pk@latest` to update or `npm uninstall -g @gomul82/pk` to remove it.
 
-Do not run `pk install` for the npm package; npm registers the commands already. For a desktop launcher or a Node-free installation, use the [native installers](https://github.com/gogiari/pk-rs/releases/latest).
+Do not run `pk install`; npm registers the commands already. Distribution is supported through npm only. Native installers and desktop shortcuts are not provided.
 
 The dashboard listens on `127.0.0.1` only. Configuration is saved outside the npm package and is retained on removal.
