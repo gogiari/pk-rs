@@ -108,11 +108,33 @@ if ($env:PK_INSTALL_PATH_ACTION -eq 'add') {
     Ok(())
 }
 
+#[cfg(windows)]
+fn resolve_windows_program(target: &str, search_path: &std::ffi::OsStr) -> Option<PathBuf> {
+    // Rust only adds .exe when searching PATH. npm CLIs use .cmd shims.
+    // Search each directory in order so the installed npm CLI takes precedence
+    // over a different copy of the executable later in PATH.
+    for directory in env::split_paths(search_path) {
+        for extension in ["exe", "com", "cmd", "bat"] {
+            let candidate = directory.join(format!("{}.{}", target, extension));
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
 pub fn run_proxied_command(target_binary: &str, args: &[String]) -> ! {
     let config = Config::load();
     let http_url = format!("http://127.0.0.1:{}", config.http_port);
 
-    let mut cmd = Command::new(target_binary);
+    #[cfg(windows)]
+    let program = env::var_os("PATH")
+        .and_then(|search_path| resolve_windows_program(target_binary, &search_path))
+        .unwrap_or_else(|| PathBuf::from(target_binary));
+    #[cfg(unix)]
+    let program = target_binary;
+    let mut cmd = Command::new(program);
     cmd.args(args);
 
     cmd.env("HTTP_PROXY", &http_url)
@@ -197,4 +219,46 @@ pub fn uninstall_symlinks() -> Result<(), String> {
     println!("
 ✅ 삭제가 완료되었습니다!");
     Ok(())
+}
+
+#[cfg(all(test, windows))]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn runs_npm_cmd_shim_with_spaces_proxy_environment_and_exit_code() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let directory = env::temp_dir()
+            .join(format!("pk npm shim {} {}", std::process::id(), unique));
+        fs::create_dir_all(&directory).unwrap();
+        let shim = directory.join("codex.cmd");
+        fs::write(
+            &shim,
+            "@echo off\r\necho %HTTP_PROXY%\r\necho %~1\r\necho %~2\r\nexit /b 23\r\n",
+        ).unwrap();
+        let later = directory.join("later");
+        fs::create_dir(&later).unwrap();
+        fs::write(later.join("codex.exe"), b"different CLI later in PATH").unwrap();
+        let search_path = env::join_paths([&directory, &later]).unwrap();
+        let program = resolve_windows_program("codex", &search_path).unwrap();
+        assert_eq!(program, shim);
+        let result = Command::new(program)
+            .args(["hello world", "--version"])
+            .env("HTTP_PROXY", "http://127.0.0.1:3128")
+            .output()
+            .unwrap();
+        fs::remove_file(shim).unwrap();
+        fs::remove_file(later.join("codex.exe")).unwrap();
+        fs::remove_dir(later).unwrap();
+        fs::remove_dir(directory).unwrap();
+        assert_eq!(result.status.code(), Some(23));
+        assert_eq!(
+            String::from_utf8(result.stdout).unwrap().lines().collect::<Vec<_>>(),
+            ["http://127.0.0.1:3128", "hello world", "--version"],
+        );
+    }
 }
