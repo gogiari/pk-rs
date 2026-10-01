@@ -1,6 +1,6 @@
 {
   "name": "@gomul82/pk",
-  "version": "0.1.9",
+  "version": "0.1.10",
   "description": "Local SSH tunnel and HTTP proxy manager with a web dashboard",
   "repository": {
     "type": "git",
@@ -14,6 +14,8 @@
   },
   "bin": {
     "pk": "bin/pk.cjs",
+    "codex-app-proxy": "bin/codex-app-proxy.cjs",
+    "chatgpt-pk": "bin/chatgpt-pk.cjs",
     "codex-proxy": "bin/codex-proxy.cjs",
     "grok-proxy": "bin/grok-proxy.cjs",
     "claude-proxy": "bin/claude-proxy.cjs",

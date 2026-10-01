@@ -8,6 +8,7 @@ import { getConfig, getLogs, getStatus, saveConfig, tunnelAction, type Settings,
 import Updater from './Updater'
 import rocketMark from './assets/rocket-mark.png'
 import Browsers from './Browsers'
+import Desktop from './Desktop'
 
 const defaultSettings: Settings = {
   ssh_target: '', ssh_password: '', ssh_key_path: '', http_port: 3128,
@@ -51,6 +52,8 @@ export default function App() {
     const mode = document.documentElement.dataset.themeMode
     return mode === 'light' || mode === 'dark' ? mode : 'system'
   })
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const theme = themePreference === 'system' ? (systemDark ? 'dark' : 'light') : themePreference
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [authMethod, setAuthMethod] = useState<AuthMethod>('password')
   const [rememberPassword, setRememberPassword] = useState(false)
@@ -74,17 +77,17 @@ export default function App() {
 
   useEffect(() => {
     const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-    const applyTheme = () => {
-      const theme = themePreference === 'system' ? (systemTheme.matches ? 'dark' : 'light') : themePreference
-      document.documentElement.dataset.theme = theme
-      document.documentElement.dataset.themeMode = themePreference
-      document.documentElement.style.colorScheme = theme
-    }
-    applyTheme()
-    systemTheme.addEventListener('change', applyTheme)
+    const updateSystemTheme = () => setSystemDark(systemTheme.matches)
+    systemTheme.addEventListener('change', updateSystemTheme)
+    return () => systemTheme.removeEventListener('change', updateSystemTheme)
+  }, [])
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    document.documentElement.dataset.themeMode = themePreference
+    document.documentElement.style.colorScheme = theme
     try { window.localStorage.setItem('pk-theme-preference', themePreference) } catch { /* Browser storage may be disabled. */ }
-    return () => systemTheme.removeEventListener('change', applyTheme)
-  }, [themePreference])
+  }, [theme, themePreference])
 
   const refreshStatus = useCallback(async () => {
     try { setStatus(await getStatus()); setStatusError(false) }
@@ -232,17 +235,13 @@ export default function App() {
         <div className="brand-copy"><h1>PK Proxy Manager</h1><p>로컬 SSH 터널 및 HTTP-to-SOCKS5 프록시 관리자</p></div>
       </div>
       <nav className="header-links" aria-label="화면 도구">
-        <div className="theme-picker">
+        <button type="button" className="theme-toggle" title="라이트 / 다크 테마 전환"
+          aria-label={theme === 'dark' ? '라이트 테마로 전환' : '다크 테마로 전환'}
+          onClick={() => setThemePreference(theme === 'dark' ? 'light' : 'dark')}>
           <SunIcon size={17} className="theme-icon-light" aria-hidden="true" />
           <MoonIcon size={17} className="theme-icon-dark" aria-hidden="true" />
-          <label className="sr-only" htmlFor="theme-preference">테마</label>
-          <select id="theme-preference" value={themePreference} onChange={(event) => setThemePreference(event.target.value as ThemePreference)}>
-            <option value="system">시스템</option>
-            <option value="light">라이트</option>
-            <option value="dark">다크</option>
-          </select>
-          <CaretDownIcon size={13} className="theme-caret" aria-hidden="true" />
-        </div>
+          <span className="theme-label-light">라이트</span><span className="theme-label-dark">다크</span>
+        </button>
         <a href="#connection-settings" onClick={() => { setActiveSection('connection'); setSettingsOpen(true) }}><GearSixIcon size={18} weight="fill" aria-hidden="true" />설정</a>
         <a href="#connection-guide"><InfoIcon size={18} weight="fill" aria-hidden="true" />연결 안내</a>
       </nav>
@@ -288,6 +287,7 @@ export default function App() {
       </section>
 
       <Browsers connected={connected} />
+      <Desktop connected={connected} />
 
       <section className="settings-panel" id="connection-settings" aria-labelledby="settings-title">
         <h2 id="settings-title" className="section-title settings-heading">
@@ -374,7 +374,7 @@ export default function App() {
     </aside>
 
     <section className="cli-section" aria-labelledby="cli-title"><div className="cli-intro"><h2 id="cli-title">CLI 바로가기</h2><p>터미널에서 프록시가 적용되는 명령어를 복사하세요.</p></div>
-      <div className="cli-list">{['codex-proxy', 'grok-proxy', 'claude-proxy', 'agy-proxy', 'ocx-proxy'].map((name) =>
+      <div className="cli-list">{['codex-app-proxy', 'codex-proxy', 'grok-proxy', 'claude-proxy', 'agy-proxy', 'ocx-proxy'].map((name) =>
         <button type="button" key={name} className="cli-command" onClick={() => void copyCommand(name)} aria-label={name + ' 복사'}><code>{name}</code><CopyIcon size={15} aria-hidden="true" /></button>)}</div>
     </section>
   </main>

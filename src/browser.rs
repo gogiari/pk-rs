@@ -473,7 +473,7 @@ pub fn profile_path(kind: BrowserKind, launcher: &Launcher) -> Result<PathBuf, S
     }
 }
 
-fn bypass_entries(value: &str) -> Result<Vec<String>, String> {
+pub(crate) fn bypass_entries(value: &str) -> Result<Vec<String>, String> {
     let mut entries = vec!["localhost".into(), "127.0.0.1".into(), "[::1]".into()];
     for item in value.split(',').map(str::trim).filter(|s| !s.is_empty()) {
         if item.contains([';', '\n', '\r', ' ', '"', '\\', '\0'])
@@ -496,7 +496,7 @@ fn bypass_entries(value: &str) -> Result<Vec<String>, String> {
     Ok(entries)
 }
 
-fn chromium_bypass(entries: &[String]) -> String {
+pub(crate) fn chromium_bypass(entries: &[String]) -> String {
     let mut result = entries.to_vec();
     for entry in entries {
         if !entry.contains(['*', '/', ':'])

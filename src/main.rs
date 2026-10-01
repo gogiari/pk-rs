@@ -3,6 +3,7 @@ mod browser_default;
 mod cli;
 mod config;
 mod daemon;
+mod desktop;
 mod http_proxy;
 mod logger;
 mod safari;
@@ -37,6 +38,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // 1. Multicall binary check (e.g. codex-proxy, grok-proxy)
     match program_name {
+        "codex-app-proxy" | "chatgpt-pk" => {
+            desktop::cli(&args[1..]).await?;
+            return Ok(());
+        }
         "codex-proxy" => {
             cli::run_proxied_command("codex", &args[1..]);
         }
@@ -60,6 +65,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let subcmd = args.get(1).map(|s| s.as_str()).unwrap_or("ui");
 
     match subcmd {
+        "desktop" | "chatgpt" => {
+            desktop::cli(&args[2..]).await?;
+            return Ok(());
+        }
+        "desktop-run-internal" => {
+            desktop::run_internal(&args[2..]).await?;
+            return Ok(());
+        }
+        "desktop-relay-internal" => {
+            // This dedicated stdio worker must close stdout immediately. Tokio
+            // cannot cancel a blocking stdin read when dropping its runtime.
+            match desktop::relay_internal(&args[2..]).await {
+                Ok(()) => std::process::exit(0),
+                Err(error) => { eprintln!("앱 프록시 중계: {error}"); std::process::exit(1); }
+            }
+        }
         "browser" => {
             browser_cli(&args[2..]).await?;
             return Ok(());
@@ -435,6 +456,9 @@ fn print_help() {
   pk browser set <브라우저> --snap <이름>      Linux Snap 지정
   pk browser reset <브라우저>            자동 검색으로 복원
   pk codex [args...] 프록시 환경변수가 적용된 codex 실행
+  pk desktop [환경] ChatGPT/Codex 데스크톱 실행 (windows, wsl, linux, macos)
+  pk desktop list   실행 환경과 저장된 설정 확인
+  pk desktop set <환경> [--distro 이름] [--path 실행파일]  기본 실행 환경 저장
   pk grok [args...]  프록시 환경변수가 적용된 grok 실행
   pk claude [args...]프록시 환경변수가 적용된 claude 실행
   pk agy [args...]   프록시 환경변수가 적용된 agy 실행

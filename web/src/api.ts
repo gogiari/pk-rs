@@ -55,6 +55,21 @@ export async function launchBrowserDefault(): Promise<{ kind: BrowserKind }> {
 }
 
 export const getBrowsers = () => getJson<BrowserInfo[]>('/api/browsers')
+
+export type DesktopEnvironment = 'auto' | 'windows' | 'wsl' | 'linux' | 'macos'
+export interface DesktopSettings { environment: DesktopEnvironment; executable: string | null; distribution: string | null }
+export interface DesktopInfo {
+  settings: DesktopSettings
+  environments: { environment: DesktopEnvironment; label: string; supported: boolean }[]
+  distributions: string[]
+}
+export const getDesktop = () => getJson<DesktopInfo>('/api/desktop')
+export async function saveDesktop(settings: DesktopSettings): Promise<void> {
+  await checkResponse(await fetch('/api/desktop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ settings }) }))
+}
+export async function launchDesktop(): Promise<void> {
+  await checkResponse(await fetch('/api/desktop/launch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }))
+}
 export async function saveBrowser(kind: BrowserKind, launcher: BrowserLauncher | null): Promise<void> {
   await checkResponse(await fetch(`/api/browsers/${kind}/settings`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ launcher }),

@@ -7,6 +7,8 @@ use crate::browser::{BrowserKind, Launcher};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(default)]
+    pub desktop: crate::desktop::DesktopSettings,
+    #[serde(default)]
     pub default_browser: Option<BrowserKind>,
     #[serde(default)]
     pub browsers: BTreeMap<BrowserKind, Launcher>,
@@ -65,6 +67,7 @@ fn default_true() -> bool {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            desktop: crate::desktop::DesktopSettings::default(),
             default_browser: None,
             browsers: BTreeMap::new(),
             ssh_target: default_ssh_target(),

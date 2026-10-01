@@ -34,6 +34,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           python scripts/smoke-update.py target/release/pk.exe
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          python scripts/smoke-desktop.py target/release/pk.exe
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Stage npm executable
         shell: pwsh
         run: |
@@ -42,6 +44,8 @@ jobs:
           New-Item -ItemType Directory -Force npm/binaries/win32-x64 | Out-Null
           Copy-Item target/release/pk.exe npm/binaries/win32-x64/pk.exe
           node npm/bin/pk.cjs status
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node npm/bin/codex-app-proxy.cjs --help
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@v7
         with:
@@ -74,6 +78,7 @@ jobs:
       - name: Test npm executable
         run: |
           node npm/bin/pk.cjs status
+          node npm/bin/codex-app-proxy.cjs --help
       - uses: actions/upload-artifact@v7
         with:
           name: pk-linux-x64
@@ -101,6 +106,7 @@ jobs:
       - name: Test npm executable
         run: |
           node npm/bin/pk.cjs status
+          node npm/bin/codex-app-proxy.cjs --help
       - uses: actions/upload-artifact@v7
         with:
           name: pk-macos-universal
@@ -165,10 +171,12 @@ jobs:
               'binaries/linux-x64/pk',
               'binaries/darwin-universal/pk',
           }
+          commands = set(json.load(open('npm/package.json'))['bin'].values())
+          required |= commands
           if not required <= names:
               raise SystemExit(f'Native binaries missing from npm tarball: {required - names}')
           package = json.load(open('npm-pack.json'))[0]
-          executable = {'bin/pk.cjs', 'binaries/linux-x64/pk', 'binaries/darwin-universal/pk'}
+          executable = commands | {'binaries/linux-x64/pk', 'binaries/darwin-universal/pk'}
           files = {file['path']: file for file in package['files']}
           for name in executable:
               if not files[name]['mode'] & 0o111:

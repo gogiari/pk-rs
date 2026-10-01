@@ -63,6 +63,9 @@ struct BrowserLaunchRequest { url: Option<String> }
 #[derive(Deserialize)]
 struct DefaultBrowserRequest { browser: Option<BrowserKind> }
 
+#[derive(Deserialize)]
+struct DesktopSettingsRequest { settings: crate::desktop::DesktopSettings }
+
 pub async fn run_web_server(state: AppState, port: u16) -> Result<(), String> {
     let app = Router::new()
         .route("/", get(index_handler))
@@ -71,6 +74,8 @@ pub async fn run_web_server(state: AppState, port: u16) -> Result<(), String> {
         .route("/api/update", get(get_update).post(start_update))
         .route("/api/logs", get(get_logs))
         .route("/api/browsers", get(get_browsers))
+        .route("/api/desktop", get(get_desktop).post(save_desktop))
+        .route("/api/desktop/launch", post(launch_desktop))
         .route("/api/browser-default", get(get_browser_default).post(save_browser_default))
         .route("/api/browser-default/launch", post(launch_browser_default))
         .route("/api/browsers/:kind/settings", post(save_browser_settings))
@@ -249,6 +254,7 @@ async fn update_config(
     let browser_settings = Config::load();
     cfg.browsers = browser_settings.browsers;
     cfg.default_browser = browser_settings.default_browser;
+    cfg.desktop = browser_settings.desktop;
 
     if let Err(e) = cfg.save() {
         return Err((
@@ -265,6 +271,41 @@ async fn update_config(
 
 type BrowserApiError = (StatusCode, String);
 
+async fn get_desktop(State(state): State<AppState>) -> Result<Json<crate::desktop::DesktopInfo>, BrowserApiError> {
+    let mut cfg = state.config.lock().await.clone();
+    let info = tokio::task::spawn_blocking(move || {
+        cfg.desktop = Config::load().desktop;
+        crate::desktop::info(&cfg)
+    }).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR,e.to_string()))?;
+    Ok(Json(info))
+}
+
+async fn save_desktop(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<DesktopSettingsRequest>)
+    -> Result<Json<serde_json::Value>, BrowserApiError> {
+    let web_port = state.config.lock().await.web_port;
+    check_browser_origin(&headers,web_port)?;
+    let settings = tokio::task::spawn_blocking(move || crate::desktop::normalize(payload.settings)).await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR,e.to_string()))?
+        .map_err(|e| (StatusCode::BAD_REQUEST,e))?;
+    let mut cfg = state.config.lock().await;
+    // Preserve changes saved through the CLI while this daemon was running.
+    let mut latest = Config::load();
+    latest.desktop = settings.clone();
+    latest.save().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR,e))?;
+    cfg.desktop = settings;
+    Ok(Json(serde_json::json!({"status":"success"})))
+}
+
+async fn launch_desktop(State(state): State<AppState>, headers: HeaderMap, Json(_): Json<serde_json::Value>)
+    -> Result<Json<serde_json::Value>, BrowserApiError> {
+    let cfg = state.config.lock().await.clone();
+    check_browser_origin(&headers,cfg.web_port)?;
+    let settings = Config::load().desktop;
+    crate::desktop::launch(&cfg,settings).await.map_err(|e| (StatusCode::BAD_REQUEST,e))?;
+    Ok(Json(serde_json::json!({"status":"success"})))
+}
+
 fn check_browser_origin(headers: &HeaderMap, web_port: u16) -> Result<(), BrowserApiError> {
     // These endpoints can start local programs. Reject requests from other sites.
     let allowed = |value: &str| {
@@ -277,7 +318,7 @@ fn check_browser_origin(headers: &HeaderMap, web_port: u16) -> Result<(), Browse
     }
     if let Some(origin) = headers.get(header::ORIGIN) {
         if !origin.to_str().map(allowed).unwrap_or(false) {
-            return Err((StatusCode::FORBIDDEN, "다른 사이트에서 브라우저를 실행할 수 없습니다.".into()));
+            return Err((StatusCode::FORBIDDEN, "다른 사이트에서 앱을 실행할 수 없습니다.".into()));
         }
     }
     Ok(())
@@ -306,6 +347,7 @@ async fn save_browser_settings(
     let browser_settings = Config::load();
     updated.browsers = browser_settings.browsers;
     updated.default_browser = browser_settings.default_browser;
+    updated.desktop = browser_settings.desktop;
     if let Some(launcher) = launcher { updated.browsers.insert(kind, launcher); }
     else { updated.browsers.remove(&kind); }
     updated.save().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
@@ -344,7 +386,9 @@ async fn save_browser_default(
     }
     let mut cfg = state.config.lock().await;
     let mut updated = cfg.clone();
-    updated.browsers = Config::load().browsers;
+    let latest = Config::load();
+    updated.browsers = latest.browsers;
+    updated.desktop = latest.desktop;
     updated.default_browser = payload.browser;
     updated.save().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     *cfg = updated;

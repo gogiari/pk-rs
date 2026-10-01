@@ -13,7 +13,7 @@ pk ui
 
 패키지 정보와 배포 버전은 [npm](https://www.npmjs.com/package/@gomul82/pk)에서 확인할 수 있습니다.
 
-`pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트 전에는 `pk stop`으로 서비스를 종료한 뒤 `npm install -g @gomul82/pk@latest`를 실행하세요. 제거할 때도 `pk stop` 후 `npm uninstall -g @gomul82/pk`를 사용합니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
+`pk`, `codex-app-proxy`, `chatgpt-pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`가 전역 명령으로 등록됩니다. npm 설치에서는 `pk install`을 따로 실행하지 마세요. 업데이트 전에는 `pk stop`으로 서비스를 종료한 뒤 `npm install -g @gomul82/pk@latest`를 실행하세요. 제거할 때도 `pk stop` 후 `npm uninstall -g @gomul82/pk`를 사용합니다. 프록시를 사용하려면 시스템에 OpenSSH `ssh` 명령이 있어야 합니다. npm이 설치를 담당하므로 프로그램 실행과 데이터 파일은 별개이며, 제거 시 개인 설정은 유지됩니다.
 
 기존 `pk-proxy-manager` 패키지에서 이동하려면 `pk stop` 후 `npm uninstall -g pk-proxy-manager`를 실행하고 `npm install -g @gomul82/pk`로 설치하세요. 두 패키지는 같은 전역 명령을 등록하므로 기존 패키지를 먼저 제거합니다. 개인 설정은 유지됩니다.
 
@@ -56,7 +56,7 @@ pk start
 ```
 - 브라우저에서 `http://127.0.0.1:8253` 접속하여 SSH 대상(예: `user@example.com`) 설정 및 상태 확인
 - 새 설치에서는 SSH 대상이 비어 있고 자동 연결이 꺼져 있습니다. 각자 대상과 인증 정보를 설정한 뒤 연결하세요.
-- 웹 대시보드와 HTTP 프록시는 IPv4 루프백 주소 `127.0.0.1`에만 바인딩되어 같은 컴퓨터에서만 직접 접속할 수 있습니다. 화면 오른쪽 위에서 시스템/라이트/다크 테마를 선택할 수 있습니다. 기본값인 시스템은 운영체제 테마 변경을 따르며, 선택은 브라우저에 저장됩니다. 대시보드는 초광폭 화면에서 최대 폭을 제한하고 중간·모바일 화면에서는 열을 재배치합니다.
+- 웹 대시보드와 HTTP 프록시는 IPv4 루프백 주소 `127.0.0.1`에만 바인딩되어 같은 컴퓨터에서만 직접 접속할 수 있습니다. 화면 오른쪽 위의 해·달 버튼을 클릭하면 라이트·다크 테마가 전환되고 선택은 브라우저에 저장됩니다. 선택하기 전에는 운영체제 테마를 따릅니다. 대시보드는 초광폭 화면에서 최대 폭을 제한하고 중간·모바일 화면에서는 열을 재배치합니다.
 
 ### 웹 UI 수정
 
@@ -86,7 +86,32 @@ agy-proxy
 ocx-proxy
 ```
 
-### 4. 프록시 전용 브라우저 실행
+### 4. ChatGPT / Codex 데스크톱 실행
+
+대시보드의 **ChatGPT / Codex 데스크톱**에서 실행 환경을 선택하고 저장합니다. Windows에서는 Windows 앱 또는 WSL의 Linux 앱을 선택하고 WSL 배포판도 지정할 수 있습니다. Linux·macOS에서는 해당 OS에 설치된 앱을 실행합니다. 현재 컴퓨터에서 실행할 수 없는 OS는 비활성화됩니다. 앱은 별도로 설치해야 하며 WSL GUI 실행에는 WSLg가 필요합니다.
+
+```bash
+codex-app-proxy                      # 저장한 환경으로 데스크톱 실행
+codex-app-proxy wsl --distro Ubuntu  # 이번 실행만 WSL / Ubuntu
+chatgpt-pk                           # 저장한 환경, 기본값은 현재 OS
+chatgpt-pk windows                   # 이번 실행만 Windows
+chatgpt-pk wsl --distro Ubuntu       # Windows에서 WSL 앱 실행
+chatgpt-pk linux                     # Linux에서 실행
+chatgpt-pk macos                     # macOS에서 실행
+pk desktop set wsl --distro Ubuntu   # 기본 실행 환경 저장
+pk desktop list
+pk desktop reset
+```
+
+`codex-app-proxy`와 `chatgpt-pk`는 같은 명령입니다. `codex-proxy`는 Codex CLI 실행용입니다.
+
+소스 빌드에서는 `./target/release/pk.exe desktop wsl --distro Ubuntu`처럼 실행할 수 있습니다. Windows에서 WSL 앱을 실행하려면 npm 패키지에 포함된 Linux PK 바이너리가 필요합니다. 로컬 개발 중에는 `bash build-linux.sh`로 `npm/binaries/linux-x64/pk`도 빌드하세요. 앱을 찾지 못하면 웹의 **앱 실행 위치 설정** 또는 `--path`로 실행 파일을 지정합니다. WSL에는 Linux 경로, macOS에는 `.app/Contents/MacOS` 안의 실행 파일을 지정합니다.
+
+PK가 프록시 환경 변수와 Electron 실행 옵션을 앱과 자식 프로세스에만 적용합니다. Windows·WSL·Linux·macOS 전역 프록시 설정은 변경하지 않습니다. Windows에서 WSL로 실행할 때는 루프백 중계로 Windows의 PK 프록시에 연결하며, LAN 공개나 WSL 전역 프록시 설정이 필요하지 않습니다. 이 앱 경로의 OpenAI HTTPS 요청은 로컬 DNS로 주소를 확인한 뒤 PK에 전달하고 TLS 검증은 앱에서 수행합니다.
+
+앱은 PK 전용 프로필과 Codex 홈으로 실행하므로 처음에는 다시 로그인해야 합니다. 로그인과 대화는 이후 유지됩니다. 프록시 포트 등 설정을 바꾸었다면 PK로 실행한 앱을 닫고 다시 실행하세요. 로그는 PK 설정 폴더의 `desktop/desktop.log`에 저장합니다. WSL 앱 프로필은 해당 배포판의 `~/.local/share/pk/desktop/wsl`에 저장합니다.
+
+### 5. 프록시 전용 브라우저 실행
 
 로컬 빌드로 먼저 확인하려면 PowerShell에서 `./scripts/preview-browsers.ps1`을 실행하세요. `target/browser-preview`에 별도 설정을 만들고 웹 포트 `18253`, HTTP 포트 `13128`, SOCKS5 포트 `11080`을 사용합니다. 기존 설치본과 분리해 확인할 수 있습니다. `-Foreground`를 붙이면 터미널에서 실행하며 Ctrl+C로 종료합니다. 백그라운드 미리보기를 중지하려면 `$env:PK_CONFIG_DIR = "$PWD/target/browser-preview"` 설정 후 `./target/release/pk.exe stop`을 실행합니다.
 

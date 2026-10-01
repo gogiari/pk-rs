@@ -12,6 +12,8 @@ pub fn install_symlinks() -> Result<(), String> {
 
     let commands = [
         ("pk", ""),
+        ("codex-app-proxy", "desktop"),
+        ("chatgpt-pk", "desktop"),
         ("codex-proxy", "codex"),
         ("grok-proxy", "grok"),
         ("claude-proxy", "claude"),
@@ -184,6 +186,8 @@ pub fn uninstall_symlinks() -> Result<(), String> {
     let commands = [
         "pk",
         "codex-proxy",
+        "codex-app-proxy",
+        "chatgpt-pk",
         "grok-proxy",
         "claude-proxy",
         "agy-proxy",

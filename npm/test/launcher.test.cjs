@@ -17,4 +17,5 @@ test('maps npm proxy commands to the matching Rust subcommands', () => {
   assert.deepEqual(commandArgs('pk', ['status']), ['status']);
   assert.deepEqual(commandArgs('codex', ['--help']), ['codex', '--help']);
   assert.deepEqual(commandArgs('ocx', []), ['ocx']);
+  assert.deepEqual(commandArgs('desktop', ['wsl', '--distro', 'Ubuntu']), ['desktop', 'wsl', '--distro', 'Ubuntu']);
 });

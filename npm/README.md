@@ -9,7 +9,25 @@ pk ui
 
 The package includes prebuilt Windows x64, macOS Intel/Apple Silicon, and Linux x64 binaries. No Rust toolchain is required. OpenSSH (`ssh`) is required to use SSH tunnels.
 
-Commands: `pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`.
+Commands: `pk`, `codex-app-proxy`, `chatgpt-pk`, `codex-proxy`, `grok-proxy`, `claude-proxy`, `agy-proxy`, `ocx-proxy`, `opencodex-proxy`.
+
+Use **ChatGPT / Codex desktop** in the dashboard to save an execution environment. Windows supports its native app and WSL Linux apps; Linux and macOS run their native apps. Unsupported environments are disabled. Install the desktop app separately; WSL GUI apps require WSLg.
+
+```sh
+codex-app-proxy                    # saved desktop environment
+codex-app-proxy wsl --distro Ubuntu
+chatgpt-pk                         # saved environment, current OS by default
+chatgpt-pk windows                 # one-time override on Windows
+chatgpt-pk wsl --distro Ubuntu      # WSL app from Windows
+chatgpt-pk linux                   # native Linux
+chatgpt-pk macos                   # native macOS
+pk desktop set wsl --distro Ubuntu
+pk desktop list
+```
+
+`codex-app-proxy` and `chatgpt-pk` are aliases for the same desktop launcher. `codex-proxy` runs the Codex CLI.
+
+Use `--path` for a custom executable. Proxy variables and Electron options apply only to the app and its children. WSL uses a loopback stdio relay to reach the Windows PK proxy, without changing system proxy settings or exposing a LAN port. OpenAI HTTPS requests on this app route use locally resolved addresses while the app retains TLS verification. PK uses a separate persistent app profile and Codex home, so sign in again on first launch. Close the PK app before changing proxy ports. Logs are in the PK configuration directory under `desktop/desktop.log`.
 
 Connect the SSH tunnel in the dashboard, then run `pk browser` to open the OS default browser with PK's proxy settings. Save a **default proxy browser** in the dashboard to use another browser for both the web launch button and CLI. An explicit command such as `pk browser firefox https://example.com` takes priority over that preference.
 
