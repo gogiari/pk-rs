@@ -134,7 +134,8 @@ def main():
         for server in servers:
             server.shutdown()
             server.server_close()
-        print(f"Reports: {root}")
+        # Windows CI may use a console encoding that cannot represent Korean.
+        print(f"Reports: {str(root)!a}")
 
 
 if __name__ == "__main__":
