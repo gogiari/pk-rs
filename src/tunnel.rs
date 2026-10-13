@@ -51,7 +51,7 @@ impl TunnelManager {
         let socks_arg = format!("127.0.0.1:{}", cfg.socks_port);
 
         log_info!(
-            "[Tunnel] SSH 터널 프로세스를 실행합니다: ssh -D {} -N -o ServerAliveInterval=5 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes {}",
+            "[Tunnel] SSH 터널 프로세스를 실행합니다: ssh -D {} -N -o ServerAliveInterval=30 -o ServerAliveCountMax=6 -o ExitOnForwardFailure=yes {}",
             socks_arg, cfg.ssh_target
         );
 
@@ -60,9 +60,9 @@ impl TunnelManager {
             .arg(&socks_arg)
             .arg("-N")
             .arg("-o")
-            .arg("ServerAliveInterval=5")
+            .arg("ServerAliveInterval=30")
             .arg("-o")
-            .arg("ServerAliveCountMax=3")
+            .arg("ServerAliveCountMax=6")
             .arg("-o")
             .arg("ExitOnForwardFailure=yes");
 
